@@ -52,6 +52,7 @@
 .dish-name { display: block; font-size: 30rpx; font-weight: 700; }
 .dish-meta { display: block; margin-top: 6rpx; font-size: 22rpx; color: #9C9284; line-height: 1.5; }
 .dish-votes { display: block; margin-top: 8rpx; font-size: 21rpx; color: #C97A24; }
+.dish-missing { display: block; margin-top: 8rpx; font-size: 21rpx; color: #7E8B4F; }
 
 .vote-btn {
     flex-shrink: 0;

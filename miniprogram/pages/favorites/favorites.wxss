@@ -1,0 +1,138 @@
+.fav-hero {
+    display: flex;
+    align-items: center;
+    padding: 32rpx;
+    border-radius: 34rpx;
+    background: linear-gradient(120deg, #DCC9F2, #C9B2E8);
+    box-shadow: 0 12rpx 28rpx rgba(147, 114, 190, 0.24);
+}
+
+.fav-hero-emoji { font-size: 64rpx; }
+.fav-hero-copy { flex: 1; margin-left: 22rpx; }
+.fav-hero-title { display: block; font-size: 36rpx; font-weight: 800; color: #4B2F70; }
+.fav-hero-sub { display: block; margin-top: 8rpx; font-size: 23rpx; color: #6F5490; }
+
+.filter-row {
+    display: flex;
+    margin: 26rpx 0 18rpx;
+}
+
+.filter-chip {
+    padding: 12rpx 26rpx;
+    margin-right: 14rpx;
+    border-radius: 999rpx;
+    background: #FFFFFF;
+    color: #8B8172;
+    font-size: 24rpx;
+    box-shadow: 0 6rpx 16rpx rgba(126, 110, 74, 0.06);
+}
+
+.filter-on {
+    background: #9B77C9;
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+.fav-card {
+    display: flex;
+    align-items: flex-start;
+    box-sizing: border-box;
+    padding: 26rpx 24rpx;
+    margin-bottom: 16rpx;
+    border-radius: 28rpx;
+    background: #FFFFFF;
+    border: 2rpx solid #EEE6F6;
+    box-shadow: 0 8rpx 22rpx rgba(126, 110, 74, 0.07);
+    animation: popIn 0.35s both;
+}
+
+.fav-emoji { font-size: 56rpx; line-height: 1.1; }
+
+.fav-copy { flex: 1; margin-left: 20rpx; overflow: hidden; }
+
+.fav-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.fav-name {
+    flex: 1;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #4A4036;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.fav-status {
+    flex-shrink: 0;
+    margin-left: 14rpx;
+    padding: 6rpx 16rpx;
+    border-radius: 999rpx;
+    font-size: 20rpx;
+    font-weight: 700;
+}
+
+.status-ready { background: #E7F2DA; color: #4E7A3E; }
+.status-half { background: #FBF0D6; color: #A1752A; }
+.status-far { background: #F2EFEA; color: #948A7B; }
+
+.fav-meta { display: block; margin-top: 8rpx; font-size: 22rpx; color: #9C9284; }
+.fav-items { display: block; margin-top: 8rpx; font-size: 22rpx; color: #7E7466; line-height: 1.5; }
+
+.fav-tags { display: flex; flex-wrap: wrap; margin-top: 10rpx; }
+
+.fav-tag {
+    padding: 4rpx 14rpx;
+    margin-right: 10rpx;
+    border-radius: 999rpx;
+    background: #F5F0FB;
+    color: #7B5CA6;
+    font-size: 20rpx;
+}
+
+.fav-hint {
+    display: block;
+    margin: 10rpx 4rpx 0;
+    text-align: center;
+    font-size: 21rpx;
+    color: #BDB3A1;
+}
+
+.detail-emoji { display: block; font-size: 80rpx; text-align: center; margin-bottom: 10rpx; }
+.detail-need { display: block; font-size: 26rpx; line-height: 1.7; color: #6B6151; }
+
+.detail-step {
+    display: flex;
+    align-items: flex-start;
+    padding: 14rpx 0;
+    border-bottom: 2rpx dashed #EFEADB;
+}
+
+.step-no {
+    flex-shrink: 0;
+    width: 40rpx;
+    height: 40rpx;
+    line-height: 40rpx;
+    text-align: center;
+    border-radius: 50%;
+    background: #F0E9FA;
+    color: #7351A0;
+    font-size: 22rpx;
+    font-weight: 700;
+}
+
+.step-text { flex: 1; margin-left: 16rpx; font-size: 26rpx; line-height: 1.7; }
+
+.detail-tip {
+    display: block;
+    margin-top: 22rpx;
+    padding: 18rpx 22rpx;
+    border-radius: 18rpx;
+    background: #FFF8E4;
+    color: #A1752A;
+    font-size: 23rpx;
+    line-height: 1.6;
+}

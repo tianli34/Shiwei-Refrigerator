@@ -5,6 +5,7 @@
     "pages/shopping/shopping",
     "pages/family/family",
     "pages/profile/profile",
+    "pages/favorites/favorites",
     "pages/order/order"
   ],
   "window": {

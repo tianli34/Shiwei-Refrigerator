@@ -40,15 +40,32 @@ function hasIngredient(ownedNames, needed) {
     });
 }
 
+// 云端 recipes 行的用料归一化。早期 AI 菜谱曾把「还需买的食材」(extra) 写进
+// seasonings，这里统一纠正为「用料 = 主料 + 需补货」，调料留空，兼容历史数据。
+function cloudRecipeItems(row) {
+    const source = row || {};
+    const mainItems = (Array.isArray(source.main_items) ? source.main_items : []).filter(Boolean);
+    const seasonings = (Array.isArray(source.seasonings) ? source.seasonings : []).filter(Boolean);
+    if (source.source !== 'ai' || !seasonings.length) {
+        return { mainItems: mainItems, seasonings: seasonings };
+    }
+    const merged = mainItems.slice();
+    seasonings.forEach(function (name) {
+        if (merged.indexOf(name) < 0) merged.push(name);
+    });
+    return { mainItems: merged, seasonings: [] };
+}
+
 // 把云端 recipes 行融合进匹配池（AI 生成的菜谱也能被再次匹配到）。
 function allRecipes(cloudRows) {
     const extra = (cloudRows || []).map(function (row) {
+        const items = cloudRecipeItems(row);
         return {
             id: 'c' + row.id,
             name: row.name,
             emoji: row.emoji || '✨',
-            mainItems: Array.isArray(row.main_items) ? row.main_items : [],
-            seasonings: Array.isArray(row.seasonings) ? row.seasonings : [],
+            mainItems: items.mainItems,
+            seasonings: items.seasonings,
             minutes: row.minutes || 20,
             difficulty: row.difficulty || '有趣',
             tags: Array.isArray(row.tags) ? row.tags : ['AI 创意'],
@@ -102,4 +119,4 @@ function shelfDaysFor(name, fallback) {
     return hit ? hit.shelfDays : (fallback || 3);
 }
 
-module.exports = { BUILTIN: BUILTIN, allRecipes: allRecipes, match: match, emojiFor: emojiFor, shelfDaysFor: shelfDaysFor, hasIngredient: hasIngredient };
+module.exports = { BUILTIN: BUILTIN, cloudRecipeItems: cloudRecipeItems, allRecipes: allRecipes, match: match, emojiFor: emojiFor, shelfDaysFor: shelfDaysFor, hasIngredient: hasIngredient };

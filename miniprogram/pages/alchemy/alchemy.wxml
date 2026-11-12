@@ -120,6 +120,7 @@
                         <view class="ai-mini" bindtap="onSaveAi">{{aiSaved ? '已收藏 ✓' : '收藏这道菜'}}</view>
                         <view class="ai-mini" bindtap="onAiToShopping">缺的加入买菜篮</view>
                     </view>
+                    <text class="ai-saved-link" wx:if="{{aiSaved}}" bindtap="goFavorites">已存进我的收藏，去看看 ›</text>
                 </view>
                 <text class="ai-error" wx:if="{{aiError}}">{{aiError}}</text>
             </view>

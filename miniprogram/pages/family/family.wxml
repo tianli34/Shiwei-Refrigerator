@@ -51,8 +51,8 @@
         <!-- 点菜板 -->
         <view class="card">
             <text class="section-title">📋 微信点菜板</text>
-            <text class="section-sub">生成一份冰箱菜单发给朋友，TA 点菜，你这边收到汇总的采购和制作清单。</text>
-            <view class="btn-primary" style="margin-top:22rpx" bindtap="onCreateShare">✨ 生成今晚的点菜菜单</view>
+            <text class="section-sub">按冰箱现有食材自动配菜，临期食材优先上桌；发给朋友点菜，你这边收到汇总的采购和制作清单。</text>
+            <view class="btn-primary" style="margin-top:22rpx" bindtap="onCreateShare">✨ 按冰箱库存生成菜单</view>
 
             <block wx:if="{{shares.length > 0}}">
                 <text class="field-label">我发出去的菜单</text>
@@ -99,12 +99,18 @@
         </view>
 
         <block wx:if="{{buyList.length > 0}}">
-            <text class="field-label">🛒 汇总采购 / 制作清单</text>
+            <text class="field-label">🛒 冰箱里还缺 {{buyList.length}} 样</text>
             <view class="buy-list">
                 <text class="buy-chip" wx:for="{{buyList}}" wx:key="*this">{{item}}</text>
             </view>
-            <view class="btn-yellow" style="margin-top:24rpx" bindtap="onBuyListToBasket">把这些加进买菜篮</view>
+            <text class="buy-note" wx:if="{{buyNote}}">{{buyNote}}</text>
+            <text class="have-line" wx:if="{{haveList.length > 0}}">🧊 冰箱里已有：{{haveListText}}</text>
+            <view class="btn-yellow" style="margin-top:24rpx" bindtap="onBuyListToBasket">把缺的加进买菜篮</view>
         </block>
+        <view class="buy-all-set" wx:elif="{{voteTotal > 0 && haveList.length > 0}}">
+            <text class="buy-note">🧊 这些菜的材料冰箱里都齐了，不用买～</text>
+            <text class="have-line">冰箱里已有：{{haveListText}}</text>
+        </view>
         <view class="btn-ghost" style="margin-top:20rpx" bindtap="closeVotes">关上</view>
     </view>
 </view>

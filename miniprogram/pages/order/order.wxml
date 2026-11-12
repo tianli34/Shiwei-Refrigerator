@@ -33,6 +33,7 @@
             <view class="dish-copy">
                 <text class="dish-name">{{item.name}}</text>
                 <text class="dish-meta">{{item.minutes}} 分钟 · 主料 {{item.mainItemsText}}</text>
+                <text class="dish-missing" wx:if="{{item.missingText}}">还差 {{item.missingText}} · 其余主料冰箱里都有</text>
                 <text class="dish-votes" wx:if="{{item.voteCount > 0}}">已有 {{item.voteCount}} 人点这道</text>
             </view>
             <view class="vote-btn {{item.mineVoted ? 'vote-btn-on' : ''}}" data-index="{{index}}" bindtap="onVote">{{item.mineVoted ? '已点 ✓' : '点它'}}</view>

@@ -41,7 +41,9 @@
 .stat { flex: 1; text-align: center; }
 .stat-num { display: block; font-size: 40rpx; font-weight: 800; color: #4E7A3E; }
 .stat-warn { color: #E08B5A; }
+.stat-ai { color: #7351A0; }
 .stat-label { display: block; margin-top: 6rpx; font-size: 21rpx; color: #9C9284; }
+.stat-link .stat-label { color: #7351A0; }
 
 .card { margin-bottom: 24rpx; }
 

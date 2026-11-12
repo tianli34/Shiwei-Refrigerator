@@ -35,8 +35,15 @@ Page(createAuthMixin({
         rows.sort(function (a, b) {
             return util.diffDays(a.expiry_on) - util.diffDays(b.expiry_on);
         });
-        const preselect = wx.getStorageSync('alchemy_preselect') || [];
-        const preNames = Array.isArray(preselect) ? preselect.slice(0, 4) : [];
+        const preselect = wx.getStorageSync('alchemy_preselect');
+        let preNames = [];
+        let preFrom = '';
+        if (Array.isArray(preselect)) {
+            preNames = preselect.slice(0, 4);
+        } else if (preselect && Array.isArray(preselect.names)) {
+            preNames = preselect.names.slice(0, 4);
+            preFrom = preselect.from || '';
+        }
         const options = rows.slice(0, 30).map(function (row) {
             return {
                 id: row.id,
@@ -47,7 +54,12 @@ Page(createAuthMixin({
         });
         let hint = '';
         if (preNames.length) {
-            hint = '已帮你勾上快过期的食材，先消灭它们 ♻️';
+            const hit = options.filter(function (item) { return item.selected; }).length;
+            if (hit === 0) {
+                hint = '收藏的菜还缺食材，先在冰箱里补上吧 🧺';
+            } else {
+                hint = preFrom === 'favorites' ? '已按收藏的菜谱勾好食材，再合成一次试试 ✨' : '已帮你勾上快过期的食材，先消灭它们 ♻️';
+            }
             wx.removeStorageSync('alchemy_preselect');
         }
         this.setData({ viewState: 'ready', foodOptions: options, preselectHint: hint });
@@ -183,11 +195,17 @@ Page(createAuthMixin({
     onSaveAi: async function () {
         const recipe = this.data.aiRecipe;
         if (!recipe || this.data.aiSaved) return;
+        // extra 是「还需买的食材」而不是调料，并入用料后才能参与缺货判定与反查匹配。
+        const mainItems = this.data.selectedNames.slice();
+        (recipe.extra || []).forEach(function (name) {
+            const clean = String(name || '').trim();
+            if (clean && mainItems.indexOf(clean) < 0) mainItems.push(clean);
+        });
         const result = await stores.recipes.create(stores.scope({
             name: recipe.name,
             emoji: recipe.emoji,
-            main_items: this.data.selectedNames,
-            seasonings: recipe.extra || [],
+            main_items: mainItems,
+            seasonings: [],
             steps: recipe.steps || [],
             minutes: recipe.minutes,
             difficulty: recipe.difficulty,
@@ -199,8 +217,15 @@ Page(createAuthMixin({
             return;
         }
         this.setData({ aiSaved: true });
-        util.toast('收藏成功，以后也能合成到这道菜 ✨');
+        util.toast('已收进「我的收藏」，随时能翻出来做 ✨');
         await this.loadData();
+    },
+
+    goFavorites: function () {
+        wx.navigateTo({
+            url: '/pages/favorites/favorites',
+            fail: function () { wx.reLaunch({ url: '/pages/favorites/favorites' }); },
+        });
     },
 
     onAiToShopping: function () {

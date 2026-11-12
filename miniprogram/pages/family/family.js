@@ -8,6 +8,63 @@ function myShareCodes() {
     return Array.isArray(saved) ? saved : [];
 }
 
+const MENU_SIZE = 6;
+const MAX_MISSING_ONE = 2;
+const URGENT_DAYS = 2;
+
+// 按当前冰箱库存反向配菜，最多 6 道，以「立即可做」为主、最多带 2 道「只差 1 样」。
+// 排序权重：能消耗几样临期食材 > 现有食材能否直接做 > 命中主料数 > 耗时。
+function buildMenuFromStock(stockRows, cloudRows) {
+    const stock = (stockRows || []).filter(function (row) { return !row.consumed; });
+    if (!stock.length) return { menu: [], reason: 'empty' };
+
+    const names = stock.map(function (row) { return row.name; });
+    const urgentNames = stock.filter(function (row) {
+        return util.diffDays(row.expiry_on) <= URGENT_DAYS;
+    }).map(function (row) { return row.name; });
+
+    const matched = recipes.match(names, cloudRows || []);
+    const withUrgency = function (recipe) {
+        const hits = (recipe.mainItems || []).filter(function (name) {
+            return recipes.hasIngredient(urgentNames, name);
+        }).length;
+        return Object.assign({}, recipe, { urgentHits: hits });
+    };
+    const byPriority = function (a, b) {
+        if (b.urgentHits !== a.urgentHits) return b.urgentHits - a.urgentHits;
+        if (a.isReady !== b.isReady) return a.isReady ? -1 : 1;
+        if (b.matched !== a.matched) return b.matched - a.matched;
+        return a.minutes - b.minutes;
+    };
+
+    const ready = matched.ready.map(withUrgency).map(function (item) {
+        return Object.assign({}, item, { isReady: true });
+    });
+    const missingOne = matched.missingOne.map(withUrgency).map(function (item) {
+        return Object.assign({}, item, { isReady: false });
+    });
+    const picked = [];
+    ready.concat(missingOne).sort(byPriority).forEach(function (item) {
+        if (picked.length >= MENU_SIZE) return;
+        if (!item.isReady) {
+            const alreadyMissing = picked.filter(function (one) { return !one.isReady; }).length;
+            if (alreadyMissing >= MAX_MISSING_ONE) return;
+        }
+        picked.push(item);
+    });
+    const menu = picked.map(function (item) {
+        return {
+            id: item.id,
+            name: item.name,
+            emoji: item.emoji,
+            minutes: item.minutes,
+            mainItems: item.mainItems,
+            missingText: (item.missing || []).join('、'),
+        };
+    });
+    return { menu: menu, reason: menu.length ? '' : 'no-match' };
+}
+
 Page(createAuthMixin({
     data: {
         viewState: 'loading',
@@ -21,6 +78,9 @@ Page(createAuthMixin({
         voteGroups: [],
         voteTotal: 0,
         buyList: [],
+        haveList: [],
+        haveListText: '',
+        buyNote: '',
     },
 
     loadData: async function () {
@@ -137,20 +197,39 @@ Page(createAuthMixin({
     },
 
     onCreateShare: async function () {
-        const menu = recipes.BUILTIN.slice(0, 6).map(function (item) {
-            return {
-                id: item.id,
-                name: item.name,
-                emoji: item.emoji,
-                minutes: item.minutes,
-                mainItems: item.mainItems,
-            };
-        });
+        if (this.creatingShare) return;
+        this.creatingShare = true;
+        wx.showLoading({ title: '正在翻冰箱配菜', mask: true });
+        let results;
+        try {
+            results = await Promise.all([stores.ingredients.list(), stores.recipes.list()]);
+        } catch (error) {
+            wx.hideLoading();
+            this.creatingShare = false;
+            util.toast(util.errorMessage(error, '食材加载失败，再试一次'));
+            return;
+        }
+        wx.hideLoading();
+        this.creatingShare = false;
+
+        if (results[0].error) {
+            util.toast(util.errorMessage(results[0].error, '食材加载失败，再试一次'));
+            return;
+        }
+        const cloudRows = results[1].error ? [] : (results[1].data || []);
+        const built = buildMenuFromStock(results[0].data, cloudRows);
+        if (!built.menu.length) {
+            util.toast(built.reason === 'empty'
+                ? '冰箱还是空的，先去放几样食材吧 🧊'
+                : '这些食材暂时配不出菜，去合成页让 AI 出几道 ✨');
+            return;
+        }
+
         const code = util.makeCode(6);
         const created = await stores.shares.create(stores.scope({
             title: '今晚吃什么 · ' + util.today().slice(5),
             share_code: code,
-            recipe_ids: JSON.stringify(menu),
+            recipe_ids: JSON.stringify(built.menu),
             status: 'open',
         }));
         if (created.error) {
@@ -160,7 +239,7 @@ Page(createAuthMixin({
         const codes = myShareCodes();
         codes.unshift(code);
         wx.setStorageSync('my_share_codes', codes.slice(0, 12));
-        util.toast('菜单生成啦，转发给朋友点菜吧 📋');
+        util.toast('按冰箱食材配了 ' + built.menu.length + ' 道，转发给朋友吧 📋');
         await this.loadData();
     },
 
@@ -175,12 +254,20 @@ Page(createAuthMixin({
     onViewVotes: async function (event) {
         const code = event.currentTarget.dataset.code;
         const share = this.data.shares.filter(function (item) { return item.share_code === code; })[0];
-        const result = await stores.listVotes(code);
-        if (result.error) {
-            util.toast(util.errorMessage(result.error, '点菜记录加载失败'));
+        wx.showLoading({ title: '正在核对冰箱', mask: true });
+        let results;
+        try {
+            results = await Promise.all([stores.listVotes(code), stores.ingredients.list()]);
+        } finally {
+            wx.hideLoading();
+        }
+        const voteResult = results[0];
+        const stockResult = results[1];
+        if (voteResult.error) {
+            util.toast(util.errorMessage(voteResult.error, '点菜记录加载失败'));
             return;
         }
-        const votes = result.data || [];
+        const votes = voteResult.data || [];
         const counter = {};
         votes.forEach(function (vote) {
             counter[vote.recipe_name] = (counter[vote.recipe_name] || 0) + 1;
@@ -193,18 +280,39 @@ Page(createAuthMixin({
         try { menu = JSON.parse(share ? share.recipe_ids : '[]'); } catch (error) { menu = []; }
         const wanted = {};
         menu.forEach(function (item) { wanted[item.name] = item; });
-        const buySet = {};
+        // 被点中的菜所需主料，先去重
+        const needed = [];
+        const seen = {};
         votes.forEach(function (vote) {
             const dish = wanted[vote.recipe_name];
             if (!dish) return;
-            (dish.mainItems || []).forEach(function (name) { buySet[name] = true; });
+            (dish.mainItems || []).forEach(function (name) {
+                const clean = String(name || '').trim();
+                if (clean && !seen[clean]) { seen[clean] = true; needed.push(clean); }
+            });
+        });
+
+        // 菜单是生成时的快照，是否要买以「当前库存」为准：没吃掉、没过期的才算有。
+        // 库存读取失败时退回全部主料，宁可多列也不漏买，并给出提示。
+        const stockFailed = !!stockResult.error;
+        const stockNames = stockFailed ? [] : (stockResult.data || [])
+            .filter(function (row) { return !row.consumed && util.diffDays(row.expiry_on) >= 0; })
+            .map(function (row) { return row.name; });
+        const buyList = [];
+        const haveList = [];
+        needed.forEach(function (name) {
+            if (!stockFailed && recipes.hasIngredient(stockNames, name)) haveList.push(name);
+            else buyList.push(name);
         });
         this.setData({
             showVotes: true,
             activeCode: code,
             voteGroups: groups,
             voteTotal: votes.length,
-            buyList: Object.keys(buySet),
+            buyList: buyList,
+            haveList: haveList,
+            haveListText: haveList.join('、'),
+            buyNote: stockFailed ? '库存没读到，先按全部主料列出，加篮子前可以自己删减' : '',
         });
     },
 
@@ -213,8 +321,20 @@ Page(createAuthMixin({
     onBuyListToBasket: async function () {
         const names = this.data.buyList;
         if (!names.length) return;
+        // 已在买菜篮里、还没勾完成的，不再重复加
+        let basket = { data: [], error: null };
+        try { basket = await stores.shopping.list(); } catch (error) { basket = { data: [], error: error }; }
+        const existing = (basket.error ? [] : (basket.data || []))
+            .filter(function (row) { return !row.done; })
+            .map(function (row) { return String(row.name || '').trim(); });
+        const pending = names.filter(function (name) { return existing.indexOf(name) < 0; });
+        if (!pending.length) {
+            util.toast('这些已经在买菜篮里啦 🧺');
+            this.setData({ showVotes: false });
+            return;
+        }
         let success = 0;
-        for (const name of names) {
+        for (const name of pending) {
             const result = await stores.shopping.create(stores.scope({
                 name: name,
                 emoji: recipes.emojiFor(name),
@@ -224,7 +344,8 @@ Page(createAuthMixin({
             }));
             if (!result.error) success += 1;
         }
-        util.toast('已加进买菜篮 ' + success + ' 样 🧺');
+        const skipped = names.length - pending.length;
+        util.toast('新加进买菜篮 ' + success + ' 样' + (skipped ? '（跳过 ' + skipped + ' 样已有的）' : '') + ' 🧺');
         this.setData({ showVotes: false });
     },
 

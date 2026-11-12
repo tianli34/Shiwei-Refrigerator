@@ -116,3 +116,7 @@
     color: #8A6C25;
     font-size: 24rpx;
 }
+
+.buy-note { display: block; margin-top: 8rpx; font-size: 22rpx; color: #C97A24; line-height: 1.5; }
+.have-line { display: block; margin-top: 10rpx; font-size: 22rpx; color: #9C9284; line-height: 1.5; }
+.buy-all-set { margin-top: 24rpx; padding: 22rpx 24rpx; border-radius: 20rpx; background: #F4F7EC; }

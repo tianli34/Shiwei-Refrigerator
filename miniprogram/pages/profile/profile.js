@@ -66,4 +66,10 @@ Page(createAuthMixin({
 
     goFamily: function () { wx.reLaunch({ url: '/pages/family/family' }); },
     goFridge: function () { wx.reLaunch({ url: '/pages/index/index' }); },
+    goFavorites: function () {
+        wx.navigateTo({
+            url: '/pages/favorites/favorites',
+            fail: function () { wx.reLaunch({ url: '/pages/favorites/favorites' }); },
+        });
+    },
 }));
