@@ -1,0 +1,28 @@
+<!-- 客服消息按钮：open-type="contact" 由微信原生唤起客服会话页面 -->
+<view class="cb-root cb-root-{{mode}}" style="bottom:{{bottom}}">
+    <button
+        class="cb-button cb-button-{{mode}}"
+        open-type="contact"
+        session-from="{{sessionFrom}}"
+        send-message-title="{{messageTitle}}"
+        send-message-path="{{messagePath}}"
+        show-message-card="{{true}}"
+        bindcontact="onContact"
+        bindtap="onTap"
+        hover-class="cb-hover"
+    >
+        <block wx:if="{{mode === 'fab'}}">
+            <text class="cb-fab-emoji">💬</text>
+            <text class="cb-fab-label">客服</text>
+        </block>
+
+        <view wx:else class="cb-card-row">
+            <text class="cb-card-emoji">💬</text>
+            <view class="cb-card-copy">
+                <text class="cb-card-title">{{title}}</text>
+                <text class="cb-card-desc">{{desc}}</text>
+            </view>
+            <text class="cb-card-arrow">›</text>
+        </view>
+    </button>
+</view>

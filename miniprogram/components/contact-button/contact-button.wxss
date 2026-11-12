@@ -1,0 +1,106 @@
+/* 组件样式独立，不依赖页面的 btn-* / card 类 */
+.cb-root-fab {
+    position: fixed;
+    left: 32rpx;
+    z-index: 70;
+}
+
+.cb-root-card {
+    display: block;
+    margin-bottom: 24rpx;
+}
+
+.cb-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #4A4036;
+    font-size: 28rpx;
+    line-height: 1.4;
+    text-align: left;
+    overflow: visible;
+}
+
+.cb-button::after {
+    border: none;
+}
+
+.cb-hover {
+    opacity: 0.86;
+}
+
+/* 悬浮胶囊 */
+.cb-button-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 76rpx;
+    padding: 0 28rpx;
+    border-radius: 999rpx;
+    background: #FFFDF7;
+    border: 2rpx solid #DDEBD0;
+    box-shadow: 0 10rpx 26rpx rgba(90, 78, 52, 0.18);
+    color: #4E7A3E;
+    font-size: 24rpx;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.cb-fab-emoji {
+    font-size: 30rpx;
+    line-height: 1;
+    margin-right: 8rpx;
+}
+
+.cb-fab-label {
+    line-height: 1;
+}
+
+/* 内联卡片 */
+.cb-button-card {
+    display: block;
+    width: 100%;
+    padding: 28rpx 30rpx;
+    border-radius: 32rpx;
+    background: #FFFFFF;
+    box-shadow: 0 10rpx 30rpx rgba(126, 110, 74, 0.08);
+}
+
+.cb-card-row {
+    display: flex;
+    align-items: center;
+}
+
+.cb-card-emoji {
+    font-size: 44rpx;
+    line-height: 1.1;
+}
+
+.cb-card-copy {
+    flex: 1;
+    min-width: 0;
+    margin-left: 20rpx;
+}
+
+.cb-card-title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #4A4036;
+}
+
+.cb-card-desc {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 23rpx;
+    line-height: 1.5;
+    color: #9C9284;
+}
+
+.cb-card-arrow {
+    margin-left: 16rpx;
+    font-size: 40rpx;
+    color: #BDB3A1;
+}

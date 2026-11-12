@@ -1,0 +1,97 @@
+<view class="page-wrap">
+
+    <view wx:if="{{authState === 'checking'}}" class="loading-box">
+        <text class="loading-dot">🐸</text><text>正在翻小本本…</text>
+    </view>
+
+    <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
+        <view class="auth-head">
+            <text class="auth-logo">🐸</text>
+            <text class="auth-title">欢迎来拾味冰箱</text>
+            <text class="auth-slogan">拯救过期食材，专治「今天吃什么」</text>
+        </view>
+        <login-panel bind:signedin="onSignedIn" />
+        <text class="auth-error" wx:if="{{authError}}">{{authError}}</text>
+    </view>
+
+    <block wx:else>
+        <view class="me-card">
+            <text class="me-avatar">🐸</text>
+            <view class="me-copy">
+                <text class="me-name">{{userLabel}}</text>
+                <text class="me-sub">{{householdLabel}}</text>
+            </view>
+            <text class="me-badge">主厨</text>
+        </view>
+
+        <view class="stat-grid">
+            <view class="stat">
+                <text class="stat-num">{{stats.foods}}</text>
+                <text class="stat-label">冰箱食材</text>
+            </view>
+            <view class="stat">
+                <text class="stat-num stat-warn">{{stats.urgent}}</text>
+                <text class="stat-label">快过期</text>
+            </view>
+            <view class="stat">
+                <text class="stat-num">{{stats.shopping}}</text>
+                <text class="stat-label">待买</text>
+            </view>
+            <view class="stat">
+                <text class="stat-num">{{stats.aiRecipes}}</text>
+                <text class="stat-label">AI 收藏</text>
+            </view>
+        </view>
+
+        <view class="card">
+            <text class="section-title">⏰ 临期提醒</text>
+            <text class="section-sub">食材还剩 2 天时，在冰箱首页亮起提醒条。</text>
+            <view class="setting-row">
+                <text class="setting-label">应用内临期提醒</text>
+                <switch checked="{{reminderOn}}" color="#7FB069" bindchange="onReminderChange" />
+            </view>
+            <view class="setting-row" bindtap="onSubscribeTap">
+                <view>
+                    <text class="setting-label">微信服务通知</text>
+                    <text class="setting-hint">需在小程序后台配置订阅消息模板后下发</text>
+                </view>
+                <text class="setting-arrow">›</text>
+            </view>
+        </view>
+
+        <view class="card" bindtap="goFamily">
+            <view class="row-between">
+                <text class="section-title">🏡 家庭与点菜板</text>
+                <text class="setting-arrow">›</text>
+            </view>
+            <text class="section-sub">邀请家人共用一个冰箱，把菜单发给朋友点菜</text>
+        </view>
+
+        <view class="card" bindtap="goFridge">
+            <view class="row-between">
+                <text class="section-title">🧊 回到冰箱</text>
+                <text class="setting-arrow">›</text>
+            </view>
+            <text class="section-sub">看看今天先消灭哪一样</text>
+        </view>
+
+        <!-- 客服消息入口：点击唤起微信客服会话，可直接给小程序发消息 -->
+        <contact-button
+            mode="card"
+            source="profile"
+            title="💬 联系客服 · 提建议"
+            desc="食材、菜谱、共享冰箱有问题？点这里直接给小程序发消息"
+            bind:contact="onContact"
+        />
+
+        <view class="about">
+            <text class="about-logo">🧊 拾味冰箱</text>
+            <text class="about-slogan">拯救过期食材，专治「今天吃什么」</text>
+            <text class="about-version">MVP 1.0 · 治愈系厨房小管家</text>
+        </view>
+
+        <view class="btn-ghost" style="margin-top:16rpx" bindtap="onSignOut">退出登录</view>
+    </block>
+
+    <tab-bar current="profile" />
+</view>

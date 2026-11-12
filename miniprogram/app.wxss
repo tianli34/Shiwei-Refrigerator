@@ -1,0 +1,268 @@
+page {
+    min-height: 100%;
+    background: #FAF7EE;
+    color: #4A4036;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+button {
+    border-radius: 20rpx;
+}
+
+button::after {
+    border: none;
+}
+
+.page-wrap {
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: 24rpx 28rpx 220rpx;
+}
+
+.card {
+    box-sizing: border-box;
+    background: #FFFFFF;
+    border-radius: 32rpx;
+    padding: 30rpx;
+    box-shadow: 0 10rpx 30rpx rgba(126, 110, 74, 0.08);
+}
+
+.card + .card {
+    margin-top: 24rpx;
+}
+
+.section-title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #4A4036;
+}
+
+.section-sub {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    line-height: 1.6;
+    color: #9C9284;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+}
+
+.row-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 10rpx 24rpx;
+    border-radius: 999rpx;
+    background: #F1F4E8;
+    color: #6B7F55;
+    font-size: 25rpx;
+}
+
+.chip-active {
+    background: #7FB069;
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+.btn-primary {
+    height: 92rpx;
+    line-height: 92rpx;
+    border-radius: 26rpx;
+    background: #7FB069;
+    color: #FFFFFF;
+    font-size: 30rpx;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 8rpx 20rpx rgba(127, 176, 105, 0.28);
+}
+
+.btn-yellow {
+    height: 88rpx;
+    line-height: 88rpx;
+    border-radius: 26rpx;
+    background: #F8D568;
+    color: #6B5320;
+    font-size: 29rpx;
+    font-weight: 700;
+    text-align: center;
+}
+
+.btn-ghost {
+    height: 84rpx;
+    line-height: 84rpx;
+    border-radius: 24rpx;
+    background: #F4F1E6;
+    color: #6B6151;
+    font-size: 28rpx;
+    text-align: center;
+}
+
+.btn-disabled {
+    opacity: 0.5;
+}
+
+.empty-state {
+    padding: 60rpx 20rpx;
+    text-align: center;
+}
+
+.empty-emoji {
+    display: block;
+    font-size: 88rpx;
+}
+
+.empty-title {
+    display: block;
+    margin-top: 20rpx;
+    font-size: 30rpx;
+    font-weight: 600;
+}
+
+.empty-desc {
+    display: block;
+    margin-top: 12rpx;
+    font-size: 25rpx;
+    line-height: 1.6;
+    color: #9C9284;
+}
+
+.auth-state {
+    padding: 100rpx 40rpx;
+}
+
+.auth-head {
+    text-align: center;
+    margin-bottom: 48rpx;
+}
+
+.auth-logo {
+    display: block;
+    font-size: 96rpx;
+}
+
+.auth-title {
+    display: block;
+    margin-top: 16rpx;
+    font-size: 42rpx;
+    font-weight: 800;
+    color: #4E7A3E;
+}
+
+.auth-slogan {
+    display: block;
+    margin-top: 10rpx;
+    font-size: 25rpx;
+    color: #9C9284;
+}
+
+.auth-error {
+    display: block;
+    margin: 20rpx 8rpx;
+    font-size: 24rpx;
+    color: #D97070;
+    text-align: center;
+}
+
+.loading-box {
+    padding: 140rpx 0;
+    text-align: center;
+    color: #9C9284;
+    font-size: 27rpx;
+}
+
+.loading-dot {
+    display: block;
+    font-size: 72rpx;
+    margin-bottom: 20rpx;
+    animation: bob 1.2s ease-in-out infinite;
+}
+
+@keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14rpx); }
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.6) translateY(24rpx); opacity: 0; }
+    70% { transform: scale(1.06) translateY(-6rpx); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.mask {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(52, 45, 34, 0.42);
+    z-index: 90;
+}
+
+.sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 91;
+    box-sizing: border-box;
+    max-height: 86vh;
+    overflow-y: auto;
+    padding: 36rpx 32rpx 60rpx;
+    background: #FFFDF7;
+    border-radius: 40rpx 40rpx 0 0;
+    animation: sheetUp 0.26s ease-out;
+}
+
+@keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.sheet-handle {
+    width: 88rpx;
+    height: 8rpx;
+    margin: 0 auto 24rpx;
+    border-radius: 999rpx;
+    background: #E4DFD0;
+}
+
+.sheet-title {
+    display: block;
+    font-size: 34rpx;
+    font-weight: 700;
+}
+
+.sheet-sub {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #9C9284;
+    line-height: 1.6;
+}
+
+.field-label {
+    display: block;
+    margin: 28rpx 0 12rpx;
+    font-size: 26rpx;
+    font-weight: 600;
+}
+
+.field-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 84rpx;
+    padding: 0 24rpx;
+    border-radius: 20rpx;
+    background: #F4F1E6;
+    font-size: 28rpx;
+    color: #4A4036;
+}

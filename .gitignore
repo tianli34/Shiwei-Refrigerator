@@ -1,0 +1,19 @@
+# 依赖
+node_modules/
+miniprogram_npm/
+**/node_modules/
+
+# 微信开发者工具本地私有配置
+project.private.config.json
+.idea/
+.vscode/
+
+# WorkBuddy 本地缓存与记忆
+.workbuddy/
+*.genie
+
+# 系统与日志
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

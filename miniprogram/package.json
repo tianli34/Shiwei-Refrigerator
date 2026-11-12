@@ -1,0 +1,9 @@
+{
+  "name": "shiwei-fridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "拾味冰箱 - 拯救过期食材，专治今天吃什么",
+  "dependencies": {
+    "@tencent-ai/workbuddy-cloud-sdk": "dev"
+  }
+}

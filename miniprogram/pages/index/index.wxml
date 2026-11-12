@@ -1,0 +1,246 @@
+<view class="page-wrap">
+
+    <view wx:if="{{authState === 'checking'}}" class="loading-box">
+        <text class="loading-dot">🧊</text>
+        <text>正在打开冰箱…</text>
+    </view>
+
+    <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
+        <view class="auth-head">
+            <text class="auth-logo">🧊</text>
+            <text class="auth-title">拾味冰箱</text>
+            <text class="auth-slogan">拯救过期食材，专治「今天吃什么」</text>
+        </view>
+        <login-panel bind:signedin="onSignedIn" />
+        <text class="auth-error" wx:if="{{authError}}">{{authError}}</text>
+        <view class="btn-ghost" style="margin-top:24rpx" bindtap="onRetryAuth">重新检查登录状态</view>
+    </view>
+
+    <block wx:else>
+        <!-- 冰箱门开场 -->
+        <view class="hero">
+            <view class="hero-inside">
+                <text
+                    wx:for="{{heroFoods}}"
+                    wx:key="*this"
+                    class="hero-food"
+                    style="animation-delay:{{index * 0.12}}s"
+                >{{item}}</text>
+                <text class="hero-glow">✨</text>
+            </view>
+            <view class="hero-door {{doorOpen ? 'hero-door-open' : ''}}" bindtap="openDoor">
+                <view class="door-seam"></view>
+                <view class="door-handle"></view>
+                <text class="door-word">轻推开门 · 看看有啥吃的</text>
+            </view>
+        </view>
+
+        <view class="head-row">
+            <view>
+                <text class="head-title">我的冰箱 🧺</text>
+                <text class="head-sub">{{householdLabel}}</text>
+            </view>
+            <view class="head-count">{{totalCount}} 样</view>
+        </view>
+
+        <!-- 临期预警 -->
+        <view class="alert-card" wx:if="{{urgentCount > 0}}">
+            <view class="row-between">
+                <text class="alert-title">⏰ {{urgentCount}} 样快过期啦</text>
+                <text class="alert-more" bindtap="goAlchemyWithExpiring">去消耗 →</text>
+            </view>
+            <text class="alert-names">{{expiringNames}}</text>
+            <text class="alert-tip">还有 2 天寿命的食材，最适合先下锅</text>
+        </view>
+
+        <view class="card" wx:if="{{viewState === 'error'}}">
+            <text class="section-title">加载失败</text>
+            <text class="section-sub">冰箱门没打开，检查一下网络再试试。</text>
+            <view class="btn-ghost" style="margin-top:24rpx" bindtap="onRetryData">重新加载</view>
+        </view>
+
+        <block wx:elif="{{viewState === 'loading'}}">
+            <view class="loading-box"><text class="loading-dot">🥬</text><text>正在清点食材…</text></view>
+        </block>
+
+        <block wx:else>
+            <!-- 分区 -->
+            <scroll-view scroll-x class="zone-bar" show-scrollbar="{{false}}">
+                <view
+                    wx:for="{{zones}}"
+                    wx:key="key"
+                    class="zone-chip {{activeZone == item.key ? 'zone-chip-on' : ''}}"
+                    data-zone="{{item.key}}"
+                    bindtap="onZoneTap"
+                >{{item.emoji}} {{item.label}}</view>
+            </scroll-view>
+            <text class="zone-hint">{{zoneHint}}</text>
+
+            <!-- 食材网格 -->
+            <view class="food-grid" wx:if="{{zoneItems.length > 0}}">
+                <view
+                    wx:for="{{zoneItems}}"
+                    wx:key="id"
+                    class="food-card food-card-{{item.fresh.level}}"
+                    style="animation-delay:{{index * 0.05}}s"
+                    data-id="{{item.id}}"
+                    bindtap="onFoodTap"
+                >
+                    <view class="food-top">
+                        <text class="food-emoji">{{item.emoji}}</text>
+                        <text class="food-days">{{item.fresh.label}}</text>
+                    </view>
+                    <text class="food-name">{{item.name}}</text>
+                    <text class="food-qty">{{item.quantity || '数量没记'}}</text>
+                    <view class="bar"><view class="bar-fill bar-{{item.fresh.level}}" style="width:{{item.fresh.percent}}%"></view></view>
+                    <view class="food-actions" wx:if="{{expandedItem == item.id}}">
+                        <text class="food-act" data-id="{{item.id}}" catchtap="onConsume">✅ 吃掉了</text>
+                        <text class="food-act food-act-del" data-id="{{item.id}}" catchtap="onRemove">🗑 移除</text>
+                    </view>
+                </view>
+            </view>
+
+            <view class="card empty-state" wx:else>
+                <text class="empty-emoji">{{emptyEmoji}}</text>
+                <text class="empty-title">这一层还空着呢</text>
+                <text class="empty-desc">点右下角的 ➕，用一句话、一张小票或一个标签，就能把食材请进冰箱。</text>
+            </view>
+
+            <view class="alchemy-entry" bindtap="goAlchemy">
+                <text class="alchemy-emoji">✨</text>
+                <view class="alchemy-copy">
+                    <text class="alchemy-title">食材炼金术</text>
+                    <text class="alchemy-desc">勾 2~4 样现有食材，合成今晚的菜</text>
+                </view>
+                <text class="alchemy-arrow">→</text>
+            </view>
+        </block>
+    </block>
+
+    <!-- 悬浮录入 -->
+    <view class="fab" wx:if="{{authState === 'signed-in'}}" bindtap="openAddSheet">＋</view>
+    <!-- 客服消息入口：唤起微信客服会话 -->
+    <contact-button mode="fab" source="index" />
+    <tab-bar current="index" />
+
+    <!-- 极速录入弹层 -->
+    <view class="mask" wx:if="{{showAdd}}" bindtap="closeAddSheet"></view>
+    <view class="sheet" wx:if="{{showAdd}}">
+        <view class="sheet-handle"></view>
+        <text class="sheet-title">极速录入 🛒</text>
+        <text class="sheet-sub">一句话、一张小票、点一下标签，都能把食材请进冰箱</text>
+
+        <view class="mode-row">
+            <view class="mode {{addMode == 'tag' ? 'mode-on' : ''}}" data-mode="tag" bindtap="onModeTap">🏷️ 点一点</view>
+            <view class="mode {{addMode == 'text' ? 'mode-on' : ''}}" data-mode="text" bindtap="onModeTap">🗣️ 说一句</view>
+            <view class="mode {{addMode == 'receipt' ? 'mode-on' : ''}}" data-mode="receipt" bindtap="onModeTap">🧾 拍小票</view>
+        </view>
+
+        <!-- 标签点选 -->
+        <block wx:if="{{addMode == 'tag'}}">
+            <text class="field-label">常见的，点一下就好</text>
+            <view class="tag-grid">
+                <view
+                    wx:for="{{commonFoods}}"
+                    wx:key="name"
+                    class="tag {{form.name == item.name ? 'tag-on' : ''}}"
+                    data-name="{{item.name}}"
+                    bindtap="onTagTap"
+                >{{item.emoji}} {{item.name}}</view>
+            </view>
+            <text class="field-label">也能自己写</text>
+            <input class="field-input" placeholder="食材名，比如 鲜牛奶" value="{{form.name}}" bindinput="onNameInput" />
+            <view class="mini-row">
+                <view class="mini-field">
+                    <text class="mini-label">数量（可空）</text>
+                    <input class="field-input mini-input" type="digit" confirm-type="done" maxlength="6" placeholder="比如 2" value="{{form.qty}}" bindinput="onQtyInput" />
+                </view>
+                <view class="mini-field mini-field-gap">
+                    <text class="mini-label">还能放几天</text>
+                    <view class="days-wrap">
+                        <input class="field-input mini-input days-input" type="number" confirm-type="done" maxlength="3" placeholder="3" value="{{form.shelfDays}}" bindinput="onDaysInput" />
+                        <text class="days-unit">天</text>
+                    </view>
+                </view>
+            </view>
+            <view class="unit-row">
+                <text class="unit-hint">单位</text>
+                <view class="unit-grid">
+                    <view
+                        wx:for="{{qtyUnits}}"
+                        wx:key="*this"
+                        class="tag unit {{form.unit == item || (!form.unit && item == '无') ? 'tag-on' : ''}}"
+                        data-unit="{{item}}"
+                        bindtap="onUnitTap"
+                    >{{item}}</view>
+                </view>
+            </view>
+            <view class="shelf-note">
+                <text class="shelf-tip">{{shelfTip}}</text>
+                <text class="shelf-date">🗓 {{expiryHint}}</text>
+            </view>
+            <text class="field-label">放在哪一层</text>
+            <view class="mode-row">
+                <view wx:for="{{zones}}" wx:key="key" class="mode {{form.zone == item.key ? 'mode-on' : ''}}" data-zone="{{item.key}}" bindtap="onFormZoneTap">{{item.label}}</view>
+            </view>
+            <view class="btn-primary" style="margin-top:32rpx" bindtap="addSingle">放进冰箱</view>
+
+            <!-- 连续录入：保存后弹层不关，就近给出本次成果反馈 -->
+            <view class="round-bar" wx:if="{{addedThisRound.length > 0}}">
+                <view class="round-head">
+                    <text class="round-count">✅ 本次已录入 {{addedThisRound.length}} 样</text>
+                    <view class="round-actions">
+                        <text class="round-toggle" catchtap="onRoundToggle">{{addedExpanded ? '收起 ▲' : '看看 ▼'}}</text>
+                        <text class="round-done" catchtap="closeAddSheet">完成</text>
+                    </view>
+                </view>
+                <view class="parsed-list" wx:if="{{addedExpanded}}">
+                    <view class="parsed-item" wx:for="{{addedThisRound}}" wx:key="id">
+                        <text class="parsed-emoji">{{item.emoji}}</text>
+                        <view class="parsed-copy">
+                            <text class="parsed-name">{{item.name}}</text>
+                            <text class="parsed-meta">{{item.quantity || '数量没记'}} · 还能放 {{item.shelfDays}} 天 · {{item.zoneLabel}}</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+        </block>
+
+        <!-- 一句话录入 -->
+        <block wx:elif="{{addMode == 'text'}}">
+            <text class="field-label">一句话说清楚买了啥</text>
+            <text class="quick-tip">不想打字？点一下输入框，用手机输入法里的「语音输入」把话变成文字，AI 一样能帮你拆成食材～</text>
+            <textarea class="field-input quick-area" placeholder="买了两斤排骨保质期3天，还有一盒牛奶" value="{{quickText}}" bindinput="onQuickInput" cursor-spacing="30" />
+            <view class="btn-yellow" style="margin-top:24rpx" bindtap="parseQuickText">{{parsing ? 'AI 正在拆…' : '✨ AI 帮我拆成食材'}}</view>
+            <text class="sheet-sub" style="margin-top:16rpx" wx:if="{{parseNote}}">{{parseNote}}</text>
+        </block>
+
+        <!-- 小票 OCR -->
+        <block wx:else>
+            <view class="receipt-box" bindtap="chooseReceipt">
+                <text class="receipt-emoji">🧾</text>
+                <text class="receipt-title">{{receiptBusy ? '正在识别小票…' : '拍一张超市小票'}}</text>
+                <text class="receipt-sub">也可以从相册里选一张</text>
+            </view>
+            <text class="sheet-sub" style="margin-top:16rpx" wx:if="{{parseNote}}">{{parseNote}}</text>
+        </block>
+
+        <!-- 识别结果 -->
+        <block wx:if="{{parsedFoods.length > 0}}">
+            <text class="field-label">认出了这些（{{parsedFoods.length}} 样）</text>
+            <view class="parsed-list">
+                <view class="parsed-item" wx:for="{{parsedFoods}}" wx:key="name">
+                    <text class="parsed-emoji">{{item.emoji}}</text>
+                    <view class="parsed-copy">
+                        <text class="parsed-name">{{item.name}}</text>
+                        <text class="parsed-meta">{{item.quantity || '数量没记'}} · 还能放 {{item.shelf_days}} 天 · {{item.zoneLabel}}</text>
+                    </view>
+                    <text class="parsed-del" data-index="{{index}}" bindtap="removeParsed">×</text>
+                </view>
+            </view>
+            <view class="btn-primary" style="margin-top:28rpx" bindtap="addParsed">全部放进冰箱 🧊</view>
+        </block>
+
+        <view class="btn-ghost" style="margin-top:20rpx" bindtap="closeAddSheet">关上冰箱门</view>
+    </view>
+</view>

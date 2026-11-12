@@ -1,0 +1,23 @@
+{
+  "description": "拾味冰箱 - 拯救过期食材，专治「今天吃什么」",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": ".workbuddy"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "bundle": false,
+    "es6": true,
+    "minified": true,
+    "postcss": true,
+    "urlCheck": true
+  },
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "shiwei-fridge",
+  "miniprogramRoot": "./"
+}

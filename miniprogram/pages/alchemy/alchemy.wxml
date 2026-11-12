@@ -1,0 +1,150 @@
+<view class="page-wrap">
+
+    <view wx:if="{{authState === 'checking'}}" class="loading-box">
+        <text class="loading-dot">✨</text><text>正在准备炼金台…</text>
+    </view>
+
+    <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
+        <view class="auth-head">
+            <text class="auth-logo">✨</text>
+            <text class="auth-title">食材炼金术</text>
+            <text class="auth-slogan">登录后才看得见你冰箱里的食材哦</text>
+        </view>
+        <login-panel bind:signedin="onSignedIn" />
+        <text class="auth-error" wx:if="{{authError}}">{{authError}}</text>
+    </view>
+
+    <block wx:else>
+        <view class="hero-card">
+            <text class="hero-emoji">⚗️</text>
+            <view class="hero-copy">
+                <text class="hero-title">食材炼金术</text>
+                <text class="hero-sub">勾 2~4 样现有食材，合成今晚的菜</text>
+            </view>
+        </view>
+
+        <view class="card" wx:if="{{viewState === 'error'}}">
+            <text class="section-title">食材没取出来</text>
+            <text class="section-sub">检查一下网络，或者回冰箱页看看。</text>
+            <view class="btn-ghost" style="margin-top:24rpx" bindtap="onRetryData">重新加载</view>
+        </view>
+
+        <block wx:else>
+            <view class="card">
+                <view class="row-between">
+                    <text class="section-title">① 挑食材</text>
+                    <text class="pick-count">{{selectedCount}} / 4</text>
+                </view>
+                <text class="section-sub">{{preselectHint || '点一下选中，再点一下取消'}}</text>
+
+                <view class="pick-grid" wx:if="{{foodOptions.length > 0}}">
+                    <view
+                        wx:for="{{foodOptions}}"
+                        wx:key="id"
+                        class="pick {{item.selected ? 'pick-on' : ''}}"
+                        data-index="{{index}}"
+                        bindtap="onFoodTap"
+                    >
+                        <text class="pick-emoji">{{item.emoji}}</text>
+                        <text class="pick-name">{{item.name}}</text>
+                        <text class="pick-check" wx:if="{{item.selected}}">✓</text>
+                    </view>
+                </view>
+                <view class="empty-state" wx:else>
+                    <text class="empty-emoji">🧊</text>
+                    <text class="empty-title">冰箱还是空的</text>
+                    <text class="empty-desc">先去冰箱页放几样食材，炼金术才有原料。</text>
+                    <view class="btn-ghost" style="margin-top:24rpx" bindtap="goFridge">去放食材</view>
+                </view>
+
+                <view class="synth-btn {{selectedCount < 2 ? 'btn-disabled' : ''}}" bindtap="onSynthesize">✨ 合成菜谱</view>
+            </view>
+
+            <!-- 匹配结果 -->
+            <block wx:if="{{hasResult}}">
+                <view class="result-head">
+                    <text class="section-title">🍽️ 现有食材立即可做</text>
+                    <text class="result-count">{{ready.length}} 道</text>
+                </view>
+                <view class="recipe-card" wx:for="{{ready}}" wx:key="id" data-group="ready" data-index="{{index}}" bindtap="onRecipeTap">
+                    <text class="recipe-emoji">{{item.emoji}}</text>
+                    <view class="recipe-copy">
+                        <text class="recipe-name">{{item.name}}</text>
+                        <text class="recipe-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · 用到 {{item.matchedText}}</text>
+                        <view class="recipe-tags">
+                            <text class="recipe-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+                        </view>
+                    </view>
+                    <text class="recipe-badge">能做</text>
+                </view>
+                <view class="card empty-state" wx:if="{{ready.length === 0}}">
+                    <text class="empty-emoji">🍳</text>
+                    <text class="empty-title">这组搭配还没现成的菜</text>
+                    <text class="empty-desc">往下滑，试试 AI 给你现编一道。</text>
+                </view>
+
+                <view class="result-head" style="margin-top:36rpx">
+                    <text class="section-title">🛒 只差 1 样就能解锁</text>
+                    <text class="result-count">{{missingOne.length}} 道</text>
+                </view>
+                <view class="recipe-card recipe-card-need" wx:for="{{missingOne}}" wx:key="id" data-group="missingOne" data-index="{{index}}" bindtap="onRecipeTap">
+                    <text class="recipe-emoji">{{item.emoji}}</text>
+                    <view class="recipe-copy">
+                        <text class="recipe-name">{{item.name}}</text>
+                        <text class="recipe-meta">{{item.minutes}} 分钟 · 已有 {{item.matchedText}}</text>
+                        <text class="recipe-need">只差 <text class="need-word">{{item.missingText}}</text></text>
+                    </view>
+                    <view class="add-small" data-name="{{item.missingText}}" catchtap="onAddOneMissing">＋买</view>
+                </view>
+                <view class="card empty-state" wx:if="{{missingOne.length === 0}}">
+                    <text class="empty-desc">暂时没有「只差一样」的菜，换个组合试试。</text>
+                </view>
+            </block>
+
+            <!-- AI 创意菜 -->
+            <view class="ai-card">
+                <view class="row-between">
+                    <text class="section-title">🌶️ 组合太奇葩？</text>
+                    <text class="ai-chip">AI 创意</text>
+                </view>
+                <text class="section-sub">让大厨给你编一道「黑暗但合理」的菜，还能分享给朋友笑一笑。</text>
+                <view class="ai-btn {{aiBusy ? 'btn-disabled' : ''}}" bindtap="onAiCreate">{{aiBusy ? '大厨正在憋大招…' : '✨ 生成 AI 创意菜'}}</view>
+                <view class="ai-stream" wx:if="{{aiText}}">{{aiText}}</view>
+                <view class="ai-result" wx:if="{{aiRecipe}}">
+                    <text class="ai-name">{{aiRecipe.emoji}} {{aiRecipe.name}}</text>
+                    <text class="ai-line">{{aiRecipe.punchline}}</text>
+                    <text class="ai-meta">{{aiRecipe.minutes}} 分钟 · {{aiRecipe.difficulty}}</text>
+                    <text class="ai-step" wx:for="{{aiRecipe.steps}}" wx:key="*this">{{index + 1}}. {{item}}</text>
+                    <text class="ai-line" wx:if="{{aiRecipe.extraText}}">还需补货：{{aiRecipe.extraText}}</text>
+                    <view class="ai-actions">
+                        <view class="ai-mini" bindtap="onSaveAi">{{aiSaved ? '已收藏 ✓' : '收藏这道菜'}}</view>
+                        <view class="ai-mini" bindtap="onAiToShopping">缺的加入买菜篮</view>
+                    </view>
+                </view>
+                <text class="ai-error" wx:if="{{aiError}}">{{aiError}}</text>
+            </view>
+        </block>
+    </block>
+
+    <!-- 客服消息入口：唤起微信客服会话 -->
+    <contact-button mode="fab" source="alchemy" />
+    <tab-bar current="alchemy" />
+
+    <!-- 菜谱详情 -->
+    <view class="mask" wx:if="{{detail}}" bindtap="closeDetail"></view>
+    <view class="sheet" wx:if="{{detail}}">
+        <view class="sheet-handle"></view>
+        <text class="detail-emoji">{{detail.emoji}}</text>
+        <text class="sheet-title">{{detail.name}}</text>
+        <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}} · {{detail.matchedText}}</text>
+        <text class="field-label">用料</text>
+        <text class="detail-need">{{detail.mainItemsText}}</text>
+        <text class="field-label">做法</text>
+        <view class="detail-step" wx:for="{{detail.steps}}" wx:key="*this">
+            <text class="step-no">{{index + 1}}</text>
+            <text class="step-text">{{item}}</text>
+        </view>
+        <view class="btn-yellow" style="margin-top:30rpx" wx:if="{{detail.missing.length > 0}}" bindtap="onAddDetailMissing">🛒 缺的 {{detail.missingText}} 加入买菜篮</view>
+        <view class="btn-primary" style="margin-top:20rpx" bindtap="closeDetail">今晚就做这个 👩‍🍳</view>
+    </view>
+</view>

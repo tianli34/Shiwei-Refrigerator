@@ -1,0 +1,102 @@
+.basket-hero {
+    display: flex;
+    align-items: center;
+    padding: 34rpx;
+    border-radius: 34rpx;
+    background: linear-gradient(120deg, #A8C98A, #7FB069);
+    box-shadow: 0 12rpx 28rpx rgba(94, 148, 80, 0.24);
+}
+
+.basket-emoji { font-size: 72rpx; }
+.basket-copy { margin-left: 22rpx; }
+.basket-title { display: block; font-size: 38rpx; font-weight: 800; color: #FFFFFF; }
+.basket-sub { display: block; margin-top: 8rpx; font-size: 23rpx; color: #EEF6E6; }
+
+.card { margin-top: 24rpx; }
+
+.add-row { display: flex; margin-top: 20rpx; }
+.add-input { flex: 1; margin-top: 0; }
+
+.add-btn {
+    flex-shrink: 0;
+    width: 100rpx;
+    height: 84rpx;
+    line-height: 84rpx;
+    margin-left: 14rpx;
+    text-align: center;
+    border-radius: 20rpx;
+    background: #7FB069;
+    color: #FFFFFF;
+    font-size: 28rpx;
+    font-weight: 700;
+}
+
+.result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 38rpx 4rpx 18rpx;
+}
+
+.result-count { font-size: 24rpx; color: #9C9284; }
+.clear-btn { font-size: 24rpx; color: #C97A24; }
+
+.item {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 22rpx 26rpx;
+    margin-bottom: 14rpx;
+    border-radius: 24rpx;
+    background: #FFFFFF;
+    box-shadow: 0 6rpx 18rpx rgba(126, 110, 74, 0.06);
+}
+
+.check {
+    flex-shrink: 0;
+    width: 44rpx;
+    height: 44rpx;
+    line-height: 40rpx;
+    text-align: center;
+    border: 3rpx solid #C9D8B6;
+    border-radius: 14rpx;
+    color: #FFFFFF;
+    font-size: 26rpx;
+}
+
+.check-on { background: #7FB069; border-color: #7FB069; }
+
+.item-emoji { margin-left: 20rpx; font-size: 44rpx; }
+.item-copy { flex: 1; margin-left: 18rpx; overflow: hidden; }
+.item-name { display: block; font-size: 28rpx; font-weight: 600; }
+.item-from { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A69C8B; }
+.item-del { padding: 8rpx 12rpx; font-size: 36rpx; color: #C9B8A4; }
+
+.item-done { opacity: 0.6; }
+.item-done .item-name { text-decoration: line-through; color: #9C9284; }
+
+.share-card {
+    margin-top: 40rpx;
+    padding: 30rpx;
+    border-radius: 30rpx;
+    background: #FFF6DC;
+    border: 2rpx solid #F3E2B4;
+}
+
+.share-row { display: flex; margin-top: 24rpx; }
+
+.share-btn,
+.copy-btn {
+    flex: 1;
+    height: 84rpx;
+    line-height: 84rpx;
+    margin: 0 8rpx;
+    padding: 0;
+    text-align: center;
+    border-radius: 22rpx;
+    font-size: 27rpx;
+    font-weight: 700;
+}
+
+.share-btn { background: #F8D568; color: #6B5320; }
+.copy-btn { background: #FFFFFF; color: #8A6C25; }

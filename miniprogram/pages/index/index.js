@@ -1,0 +1,419 @@
+const { createAuthMixin } = require('../../utils/auth');
+const stores = require('../../utils/store');
+const ai = require('../../utils/ai');
+const util = require('../../utils/util');
+
+const ZONE_LABEL = { cold: '冷藏', freeze: '冷冻', room: '常温' };
+const EMPTY_EMOJI = { cold: '🥛', freeze: '🧊', room: '🧺' };
+
+// 保质天数统一收敛到 1~365 天，录入表单和 AI 拆解结果都用它。
+function clampShelfDays(value) {
+    return Math.max(1, Math.min(365, Number(value) || 3));
+}
+
+const MANUAL_SHELF_TIP = '填的是从今天起还能放几天，按包装上的保质期改更准';
+
+// 把「一个数字」解释成人话：数字从哪来、能不能改、大约哪天到期。
+function shelfCopy(days, source) {
+    const n = clampShelfDays(days);
+    const parts = util.addDays(util.today(), n).split('-');
+    const dateText = Number(parts[1]) + ' 月 ' + Number(parts[2]) + ' 日';
+    return {
+        shelfSource: source || '',
+        shelfTip: source ? '「' + source + '」常见能放 ' + n + ' 天，已自动填好，可以改' : MANUAL_SHELF_TIP,
+        expiryHint: '大约 ' + dateText + ' 到期',
+    };
+}
+
+// 手动录入时数量只填数字，单位靠标签点选；拼成「2 盒」这样的描述文本，
+// 和 AI 拆解结果写进 quantity 字段的格式保持一致，列表展示也不用改。
+const QTY_UNITS = ['无', '个', '盒', '袋', '斤', '瓶', '份'];
+
+function joinQuantity(qty, unit) {
+    const n = String(qty == null ? '' : qty).trim();
+    if (!n) return '';
+    const u = String(unit || '').trim();
+    return u && u !== '无' ? n + ' ' + u : n;
+}
+
+function defaultForm() {
+    return { name: '', emoji: '🥬', zone: 'cold', qty: '', unit: '', shelfDays: 3, note: '' };
+}
+
+Page(createAuthMixin({
+    data: {
+        viewState: 'loading',
+        doorOpen: false,
+        heroFoods: ['🥛', '🥚', '🍅', '🥦', '🍗'],
+        zones: util.ZONES,
+        activeZone: 'cold',
+        zoneHint: util.ZONES[0].hint,
+        zoneItems: [],
+        expiring: [],
+        expiringNames: '',
+        totalCount: 0,
+        urgentCount: 0,
+        emptyEmoji: '🥛',
+        householdLabel: '一个人的冰箱，也要好好吃饭',
+        expandedItem: 0,
+        showAdd: false,
+        addMode: 'tag',
+        addedThisRound: [],
+        addedExpanded: false,
+        commonFoods: util.COMMON_FOODS,
+        qtyUnits: QTY_UNITS,
+        form: defaultForm(),
+        shelfSource: '',
+        shelfTip: MANUAL_SHELF_TIP,
+        expiryHint: '',
+        quickText: '',
+        parsedFoods: [],
+        parsing: false,
+        parseNote: '',
+        receiptBusy: false,
+    },
+
+    onReady: function () {
+        const that = this;
+        setTimeout(function () {
+            that.setData({ doorOpen: true });
+        }, 950);
+    },
+
+    openDoor: function () {
+        this.setData({ doorOpen: true });
+        getApp().playDoorSound();
+    },
+
+    loadData: async function () {
+        this.setData({ viewState: 'loading' });
+        const result = await stores.ingredients.list();
+        if (result.error) {
+            this.setData({ viewState: 'error' });
+            util.toast(util.errorMessage(result.error, '食材加载失败'));
+            return;
+        }
+        const rows = (result.data || []).filter(function (row) { return !row.consumed; });
+        const decorated = rows.map(function (row) {
+            return Object.assign({}, row, { fresh: util.freshness(row) });
+        });
+        const reminderOn = wx.getStorageSync('reminder_on') !== false;
+        const expiring = (reminderOn ? decorated.filter(function (row) { return row.fresh.left <= 2; }) : []).sort(function (a, b) {
+            return a.fresh.left - b.fresh.left;
+        });
+        const app = getApp();
+        this.allItems = decorated;
+        this.setData({
+            viewState: 'ready',
+            totalCount: decorated.length,
+            urgentCount: expiring.length,
+            expiring: expiring.slice(0, 8),
+            expiringNames: expiring.slice(0, 3).map(function (row) { return row.name + '(' + row.fresh.label + ')'; }).join('、') || '',
+            householdLabel: app.householdName ? '🏡 ' + app.householdName + ' · 全家同步中' : '一个人的冰箱，也要好好吃饭',
+        });
+        this.applyZone();
+    },
+
+    onRetryData: function () {
+        this.restore();
+    },
+
+    applyZone: function () {
+        const zone = this.data.activeZone;
+        const items = (this.allItems || []).filter(function (row) { return row.zone === zone; });
+        const zoneInfo = util.ZONES.filter(function (item) { return item.key === zone; })[0] || util.ZONES[0];
+        this.setData({
+            zoneItems: items,
+            zoneHint: zoneInfo.hint,
+            emptyEmoji: EMPTY_EMOJI[zone] || '🥛',
+        });
+    },
+
+    onZoneTap: function (event) {
+        this.setData({ activeZone: event.currentTarget.dataset.zone, expandedItem: 0 });
+        this.applyZone();
+    },
+
+    onFoodTap: function (event) {
+        const id = event.currentTarget.dataset.id;
+        this.setData({ expandedItem: this.data.expandedItem === id ? 0 : id });
+    },
+
+    onConsume: async function (event) {
+        const id = event.currentTarget.dataset.id;
+        const result = await stores.ingredients.update(id, { consumed: true });
+        if (result.error) {
+            util.toast(util.errorMessage(result.error, '没能标记，请重试'));
+            return;
+        }
+        util.toast('吃掉啦，好样的 🎉');
+        this.setData({ expandedItem: 0 });
+        await this.loadData();
+    },
+
+    onRemove: function (event) {
+        const id = event.currentTarget.dataset.id;
+        const that = this;
+        wx.showModal({
+            title: '移出冰箱',
+            content: '确定这样食材已经不在冰箱里了吗？',
+            success: async function (res) {
+                if (!res.confirm) return;
+                const result = await stores.ingredients.remove(id);
+                if (result.error) {
+                    util.toast(util.errorMessage(result.error, '移除失败'));
+                    return;
+                }
+                that.setData({ expandedItem: 0 });
+                await that.loadData();
+            },
+        });
+    },
+
+    goAlchemy: function () {
+        wx.removeStorageSync('alchemy_preselect');
+        wx.reLaunch({ url: '/pages/alchemy/alchemy' });
+    },
+
+    goAlchemyWithExpiring: function () {
+        const names = (this.data.expiring || []).map(function (row) { return row.name; });
+        wx.setStorageSync('alchemy_preselect', names);
+        wx.reLaunch({ url: '/pages/alchemy/alchemy' });
+    },
+
+    // ---------- 极速录入 ----------
+    openAddSheet: function () {
+        this.setData(Object.assign({
+            showAdd: true, parsedFoods: [], parseNote: '', addMode: 'tag',
+            addedThisRound: [], addedExpanded: false,
+        }, shelfCopy(this.data.form.shelfDays, '')));
+        getApp().playDoorSound();
+    },
+
+    closeAddSheet: function () {
+        this.setData({
+            showAdd: false,
+            addedThisRound: [], addedExpanded: false,
+        });
+    },
+
+    onModeTap: function (event) {
+        this.setData({ addMode: event.currentTarget.dataset.mode, parseNote: '' });
+    },
+
+    // 本次连续录入清单的展开 / 收起
+    onRoundToggle: function () {
+        this.setData({ addedExpanded: !this.data.addedExpanded });
+    },
+
+    onTagTap: function (event) {
+        const name = event.currentTarget.dataset.name;
+        const food = util.COMMON_FOODS.filter(function (item) { return item.name === name; })[0];
+        const days = food ? food.shelfDays : 3;
+        this.setData(Object.assign({
+            form: {
+                name: name,
+                emoji: food ? food.emoji : '🥣',
+                zone: food ? food.zone : 'cold',
+                qty: this.data.form.qty,
+                unit: this.data.form.unit,
+                shelfDays: days,
+                note: '',
+            },
+        }, shelfCopy(days, name)));
+    },
+
+    onNameInput: function (event) {
+        const value = event.detail.value;
+        const known = util.COMMON_FOODS.filter(function (food) { return food.name.indexOf(value) >= 0 || value.indexOf(food.name) >= 0; })[0];
+        const patch = {
+            'form.name': value,
+            'form.emoji': known ? known.emoji : (value ? '🥣' : '🥬'),
+        };
+        // 手动改名后，「按某某食材自动填」的说明就不再准确了
+        if (this.data.shelfSource && value !== this.data.shelfSource) {
+            Object.assign(patch, shelfCopy(this.data.form.shelfDays, ''));
+        }
+        this.setData(patch);
+    },
+
+    onQtyInput: function (event) { this.setData({ 'form.qty': event.detail.value }); },
+    onUnitTap: function (event) {
+        const picked = event.currentTarget.dataset.unit;
+        this.setData({ 'form.unit': picked === '无' ? '' : picked });
+    },
+    onDaysInput: function (event) {
+        const value = event.detail.value;
+        this.setData(Object.assign({ 'form.shelfDays': value }, shelfCopy(value, '')));
+    },
+    onFormZoneTap: function (event) { this.setData({ 'form.zone': event.currentTarget.dataset.zone }); },
+    onQuickInput: function (event) { this.setData({ quickText: event.detail.value }); },
+
+    decorateParsed: function (list) {
+        return (list || []).map(function (item) {
+            return Object.assign({}, item, { zoneLabel: ZONE_LABEL[item.zone] || '冷藏' });
+        });
+    },
+
+    // 连续录入：保存成功后弹层保持打开，只重置表单并累计本次成果
+    addSingle: async function () {
+        if (this.addingSingle) return;
+        const form = this.data.form;
+        const name = String(form.name || '').trim();
+        if (!name) {
+            util.toast('先给食材起个名字吧');
+            return;
+        }
+        // 等待云端返回期间用户可能又改了表单，先把入库值与回显值全部算成快照
+        const days = clampShelfDays(form.shelfDays);
+        const emoji = form.emoji || '🥣';
+        const zone = form.zone;
+        const quantity = joinQuantity(form.qty, form.unit);
+        this.addingSingle = true;
+        let result;
+        try {
+            result = await stores.ingredients.create(stores.scope({
+                name: name,
+                emoji: emoji,
+                zone: zone,
+                quantity: quantity,
+                shelf_days: days,
+                added_on: util.today(),
+                expiry_on: util.addDays(util.today(), days),
+                note: form.note || '',
+                consumed: false,
+            }));
+        } finally {
+            this.addingSingle = false;
+        }
+        if (result.error) {
+            util.toast(util.errorMessage(result.error, '没放进去，请重试'));
+            return;
+        }
+        const item = {
+            id: (result.data && result.data.id) || ('local-' + this.data.addedThisRound.length),
+            name: name,
+            emoji: emoji,
+            quantity: quantity,
+            zone: zone,
+            zoneLabel: ZONE_LABEL[zone] || '冷藏',
+            shelfDays: days,
+        };
+        // 不再关弹层：重置表单、回到标签模式，追加本次录入清单
+        this.setData(Object.assign({
+            form: defaultForm(),
+            addMode: 'tag',
+            addedThisRound: this.data.addedThisRound.concat([item]),
+        }, shelfCopy(3, '')));
+        util.toast(name + ' 已住进冰箱 🧊');
+        await this.loadData();
+    },
+
+    parseQuickText: async function () {
+        const text = String(this.data.quickText || '').trim();
+        if (!text) {
+            util.toast('先写一句，比如「买了两斤排骨保质期3天」');
+            return;
+        }
+        this.setData({ parsing: true, parseNote: 'AI 正在拆食材…', parsedFoods: [] });
+        let foods = [];
+        let note = 'AI 拆解完成，看看对不对 👇';
+        try {
+            foods = await ai.parseFoodsFromText(text);
+        } catch (error) {
+            foods = ai.fallbackParse(text);
+            note = 'AI 暂时没连上，已用本地规则拆解 👇';
+        }
+        if (!foods.length) {
+            foods = ai.fallbackParse(text);
+            note = foodNote(foods, note);
+        }
+        this.setData({ parsing: false, parsedFoods: this.decorateParsed(foods), parseNote: note });
+    },
+
+    chooseReceipt: function () {
+        const that = this;
+        if (typeof wx.chooseMedia !== 'function') {
+            util.toast('当前环境不支持拍照，换个录入方式吧');
+            return;
+        }
+        wx.chooseMedia({
+            count: 1,
+            mediaType: ['image'],
+            sourceType: ['album', 'camera'],
+            success: async function (res) {
+                const file = res.tempFiles && res.tempFiles[0];
+                if (!file) return;
+                that.setData({ receiptBusy: true, parseNote: '正在看小票…', parsedFoods: [] });
+                try {
+                    const base64 = await readBase64(file.tempFilePath);
+                    const mime = file.fileType === 'image' ? 'image/jpeg' : 'image/jpeg';
+                    const foods = await ai.parseReceipt(base64, mime);
+                    if (!foods.length) {
+                        that.setData({ receiptBusy: false, parseNote: '没认出食材，换张清楚点的小票，或用「点一点」录入。' });
+                        return;
+                    }
+                    that.setData({
+                        receiptBusy: false,
+                        parsedFoods: that.decorateParsed(foods),
+                        parseNote: '识别完成，勾掉不要的再加进冰箱 👇',
+                    });
+                } catch (error) {
+                    that.setData({ receiptBusy: false, parseNote: '小票识别暂时不可用，请用「点一点」或「说一句」录入。' });
+                }
+            },
+            fail: function () {
+                that.setData({ receiptBusy: false });
+            },
+        });
+    },
+
+    removeParsed: function (event) {
+        const index = Number(event.currentTarget.dataset.index);
+        const list = this.data.parsedFoods.slice();
+        list.splice(index, 1);
+        this.setData({ parsedFoods: list });
+    },
+
+    addParsed: async function () {
+        const list = this.data.parsedFoods;
+        if (!list.length) return;
+        wx.showLoading({ title: '正在放进冰箱', mask: true });
+        let success = 0;
+        for (const food of list) {
+            const days = clampShelfDays(food.shelf_days);
+            const result = await stores.ingredients.create(stores.scope({
+                name: food.name,
+                emoji: food.emoji || '🥣',
+                zone: food.zone || 'cold',
+                quantity: food.quantity || '',
+                shelf_days: days,
+                added_on: util.today(),
+                expiry_on: util.addDays(util.today(), days),
+                note: '',
+                consumed: false,
+            }));
+            if (!result.error) success += 1;
+        }
+        wx.hideLoading();
+        this.setData({ showAdd: false, parsedFoods: [], parseNote: '' });
+        util.toast('放进去 ' + success + ' 样食材 🧊');
+        await this.loadData();
+    },
+}));
+
+function foodNote(foods, original) {
+    return foods.length ? original : '没拆出食材，试试写「买了土豆、鸡蛋，保质期3天」';
+}
+
+function readBase64(filePath) {
+    return new Promise(function (resolve, reject) {
+        const fs = wx.getFileSystemManager();
+        fs.readFile({
+            filePath: filePath,
+            encoding: 'base64',
+            success: function (res) { resolve(res.data); },
+            fail: function (error) { reject(error); },
+        });
+    });
+}

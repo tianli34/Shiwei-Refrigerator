@@ -1,0 +1,77 @@
+.order-page {
+    background: #FFFBF0;
+}
+
+.order-hero {
+    padding: 48rpx 32rpx 40rpx;
+    text-align: center;
+    border-radius: 0 0 44rpx 44rpx;
+    background: linear-gradient(135deg, #A8C98A, #7FB069);
+}
+
+.order-emoji { display: block; font-size: 88rpx; }
+.order-title { display: block; margin-top: 16rpx; font-size: 40rpx; font-weight: 800; color: #FFFFFF; }
+.order-sub { display: block; margin-top: 12rpx; font-size: 24rpx; color: #EEF6E6; }
+
+.order-code {
+    display: inline-block;
+    margin-top: 24rpx;
+    padding: 10rpx 26rpx;
+    border-radius: 999rpx;
+    background: rgba(255, 255, 255, 0.24);
+    color: #FFFFFF;
+    font-size: 23rpx;
+    letter-spacing: 2rpx;
+}
+
+.card { margin-top: 24rpx; }
+
+.result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 38rpx 4rpx 18rpx;
+}
+
+.result-count { font-size: 24rpx; color: #9C9284; }
+
+.dish {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 24rpx;
+    margin-bottom: 16rpx;
+    border-radius: 28rpx;
+    background: #FFFFFF;
+    box-shadow: 0 8rpx 22rpx rgba(126, 110, 74, 0.07);
+    animation: popIn 0.35s both;
+}
+
+.dish-emoji { font-size: 62rpx; }
+.dish-copy { flex: 1; margin-left: 20rpx; overflow: hidden; }
+.dish-name { display: block; font-size: 30rpx; font-weight: 700; }
+.dish-meta { display: block; margin-top: 6rpx; font-size: 22rpx; color: #9C9284; line-height: 1.5; }
+.dish-votes { display: block; margin-top: 8rpx; font-size: 21rpx; color: #C97A24; }
+
+.vote-btn {
+    flex-shrink: 0;
+    padding: 16rpx 24rpx;
+    border-radius: 999rpx;
+    background: #F8D568;
+    color: #6B5320;
+    font-size: 25rpx;
+    font-weight: 700;
+}
+
+.vote-btn-on { background: #E9F3DE; color: #4E7A3E; }
+
+.done-card {
+    margin-top: 32rpx;
+    padding: 28rpx;
+    border-radius: 28rpx;
+    background: #EAF3DF;
+}
+
+.done-title { display: block; font-size: 28rpx; font-weight: 700; color: #4E7A3E; }
+.done-line { display: block; margin-top: 10rpx; font-size: 24rpx; color: #6B7F55; }
+.done-hint { display: block; margin-top: 10rpx; font-size: 23rpx; color: #8FA07C; }

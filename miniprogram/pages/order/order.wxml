@@ -1,0 +1,52 @@
+<view class="page-wrap order-page">
+
+    <view class="order-hero">
+        <text class="order-emoji">🍽️</text>
+        <text class="order-title">今晚吃什么，你说了算</text>
+        <text class="order-sub">主厨已经把冰箱翻了个遍，点一道你最想吃的吧</text>
+        <text class="order-code">菜单码 {{code || '—'}}</text>
+    </view>
+
+    <view class="card" wx:if="{{viewState === 'loading'}}">
+        <view class="loading-box"><text class="loading-dot">🥢</text><text>正在端菜上来…</text></view>
+    </view>
+
+    <view class="card" wx:elif="{{viewState === 'error'}}">
+        <text class="section-title">这份菜单没找到</text>
+        <text class="section-sub">{{errorMsg}}</text>
+        <view class="btn-ghost" style="margin-top:24rpx" bindtap="goHome">打开拾味冰箱</view>
+    </view>
+
+    <block wx:else>
+        <view class="card">
+            <text class="field-label" style="margin-top:0">怎么称呼你</text>
+            <input class="field-input" placeholder="留个昵称，主厨好知道是谁点的" value="{{guestName}}" bindinput="onGuestInput" maxlength="12" />
+        </view>
+
+        <view class="result-head">
+            <text class="section-title">📋 今日菜单</text>
+            <text class="result-count">共 {{voteTotal}} 票</text>
+        </view>
+
+        <view class="dish" wx:for="{{menu}}" wx:key="id">
+            <text class="dish-emoji">{{item.emoji}}</text>
+            <view class="dish-copy">
+                <text class="dish-name">{{item.name}}</text>
+                <text class="dish-meta">{{item.minutes}} 分钟 · 主料 {{item.mainItemsText}}</text>
+                <text class="dish-votes" wx:if="{{item.voteCount > 0}}">已有 {{item.voteCount}} 人点这道</text>
+            </view>
+            <view class="vote-btn {{item.mineVoted ? 'vote-btn-on' : ''}}" data-index="{{index}}" bindtap="onVote">{{item.mineVoted ? '已点 ✓' : '点它'}}</view>
+        </view>
+
+        <view class="done-card">
+            <text class="done-title">✅ 我点了 {{mineVotes.length}} 道</text>
+            <text class="done-line" wx:for="{{mineVotes}}" wx:key="*this">· {{item}}</text>
+            <text class="done-hint" wx:if="{{mineVotes.length === 0}}">还没点，挑一道吧～</text>
+        </view>
+
+        <view class="btn-primary" style="margin-top:30rpx" bindtap="goHome">我也想有个这样的冰箱 🧊</view>
+    </block>
+
+    <!-- 点菜客人也能找客服（该页没有底部导航，悬浮位置下移） -->
+    <contact-button mode="fab" source="order" bottom="48rpx" />
+</view>

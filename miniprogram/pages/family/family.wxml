@@ -1,0 +1,110 @@
+<view class="page-wrap">
+
+    <view wx:if="{{authState === 'checking'}}" class="loading-box">
+        <text class="loading-dot">🏡</text><text>正在找家人…</text>
+    </view>
+
+    <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
+        <view class="auth-head">
+            <text class="auth-logo">🏡</text>
+            <text class="auth-title">一起用一个冰箱</text>
+            <text class="auth-slogan">登录后才能把家人拉进同一个冰箱</text>
+        </view>
+        <login-panel bind:signedin="onSignedIn" />
+        <text class="auth-error" wx:if="{{authError}}">{{authError}}</text>
+    </view>
+
+    <block wx:else>
+        <view class="family-hero">
+            <text class="family-emoji">🏡</text>
+            <view class="family-copy">
+                <text class="family-title">同一个冰箱，同一顿饭</text>
+                <text class="family-sub">食材、买菜篮实时同步；把菜单发给朋友点菜</text>
+            </view>
+        </view>
+
+        <!-- 家庭冰箱 -->
+        <view class="card">
+            <text class="section-title">🧊 {{householdKey ? householdName : '开启共享冰箱'}}</text>
+
+            <block wx:if="{{householdKey}}">
+                <text class="section-sub">把下面这串邀请码发给家人，TA 输入后就能看到同一份库存。</text>
+                <view class="code-box">
+                    <text class="code-text">{{householdKey}}</text>
+                    <text class="code-copy" bindtap="onCopyInvite">复制</text>
+                </view>
+                <view class="btn-ghost" style="margin-top:20rpx" bindtap="onLeaveHousehold">退出这个冰箱</view>
+            </block>
+
+            <block wx:else>
+                <text class="section-sub">建一个新冰箱，或者输入家人给你的邀请码。</text>
+                <text class="field-label">新建</text>
+                <input class="field-input" placeholder="给冰箱起个名，比如「我和室友」" value="{{createName}}" bindinput="onCreateName" />
+                <view class="btn-primary" style="margin-top:18rpx" bindtap="onCreateHousehold">创建一个共享冰箱</view>
+
+                <text class="field-label">加入</text>
+                <input class="field-input" placeholder="输入 6 位邀请码" value="{{joinCode}}" bindinput="onJoinCode" maxlength="6" />
+                <view class="btn-yellow" style="margin-top:18rpx" bindtap="onJoinHousehold">加入 TA 的冰箱</view>
+            </block>
+        </view>
+
+        <!-- 点菜板 -->
+        <view class="card">
+            <text class="section-title">📋 微信点菜板</text>
+            <text class="section-sub">生成一份冰箱菜单发给朋友，TA 点菜，你这边收到汇总的采购和制作清单。</text>
+            <view class="btn-primary" style="margin-top:22rpx" bindtap="onCreateShare">✨ 生成今晚的点菜菜单</view>
+
+            <block wx:if="{{shares.length > 0}}">
+                <text class="field-label">我发出去的菜单</text>
+                <view class="share-item" wx:for="{{shares}}" wx:key="share_code">
+                    <view class="share-item-top">
+                        <text class="share-title">{{item.title}}</text>
+                        <text class="share-code">{{item.share_code}}</text>
+                    </view>
+                    <view class="share-actions">
+                        <text class="share-act" data-code="{{item.share_code}}" bindtap="onViewVotes">👀 看点菜 ({{item.voteCount}})</text>
+                        <text class="share-act" data-code="{{item.share_code}}" bindtap="onCopyShare">📋 复制码</text>
+                        <button class="share-act share-button" open-type="share" data-code="{{item.share_code}}">↗ 转发</button>
+                    </view>
+                </view>
+            </block>
+            <view class="hint-line" wx:else>还没有发出菜单，点上面的按钮生成第一份吧。</view>
+        </view>
+
+        <view class="tip-card">
+            <text class="tip-title">💡 小提示</text>
+            <text class="tip-text">朋友点开分享卡片就能直接点菜，不需要登录。主厨端这里会汇总成一份采购清单，缺的食材可以一键加进买菜篮。</text>
+        </view>
+    </block>
+
+    <!-- 客服消息入口：唤起微信客服会话 -->
+    <contact-button mode="fab" source="family" />
+    <tab-bar current="family" />
+
+    <!-- 点菜汇总 -->
+    <view class="mask" wx:if="{{showVotes}}" bindtap="closeVotes"></view>
+    <view class="sheet" wx:if="{{showVotes}}">
+        <view class="sheet-handle"></view>
+        <text class="sheet-title">🍽️ 大家点了这些</text>
+        <text class="sheet-sub">共 {{voteTotal}} 票 · 菜单码 {{activeCode}}</text>
+
+        <view class="vote-row" wx:for="{{voteGroups}}" wx:key="name">
+            <text class="vote-name">{{item.name}}</text>
+            <text class="vote-count">{{item.count}} 票</text>
+        </view>
+        <view class="empty-state" wx:if="{{voteGroups.length === 0}}">
+            <text class="empty-emoji">🍽️</text>
+            <text class="empty-title">还没人点菜</text>
+            <text class="empty-desc">把菜单转发给朋友，等他们来点。</text>
+        </view>
+
+        <block wx:if="{{buyList.length > 0}}">
+            <text class="field-label">🛒 汇总采购 / 制作清单</text>
+            <view class="buy-list">
+                <text class="buy-chip" wx:for="{{buyList}}" wx:key="*this">{{item}}</text>
+            </view>
+            <view class="btn-yellow" style="margin-top:24rpx" bindtap="onBuyListToBasket">把这些加进买菜篮</view>
+        </block>
+        <view class="btn-ghost" style="margin-top:20rpx" bindtap="closeVotes">关上</view>
+    </view>
+</view>
