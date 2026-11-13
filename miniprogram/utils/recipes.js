@@ -1,4 +1,6 @@
 // 内置菜谱库：离线即可做食材反向匹配；云端 recipes 表用于保存 AI 生成的创意菜。
+const dict = require('./food-dict');
+const foodNames = require('./food-names');
 const BUILTIN = [
     { id: 'b1', name: '土豆鸡肉焖饭', emoji: '🍚', mainItems: ['土豆', '鸡胸肉', '米饭'], seasonings: ['生抽', '盐'], minutes: 35, difficulty: '简单', tags: ['一锅端', '剩饭救星'], steps: ['土豆切小块，鸡胸肉切丁用少许生抽抓匀', '米洗净放入电饭煲，加平常水量', '铺上土豆和鸡肉，按下煮饭键', '出锅拌匀，撒一点葱花更香'] },
     { id: 'b2', name: '番茄炒蛋', emoji: '🍅', mainItems: ['番茄', '鸡蛋'], seasonings: ['糖', '盐'], minutes: 10, difficulty: '简单', tags: ['快手', '下饭'], steps: ['鸡蛋打散炒至凝固盛出', '番茄切块炒出汁，加少许糖', '倒回鸡蛋翻匀，加盐出锅'] },
@@ -30,13 +32,20 @@ function normalizeName(value) {
     return String(value || '').replace(/[\s（）()【】\[\]]/g, '').toLowerCase();
 }
 
+// 食材身份一律用 food_id 比较；中文名只负责显示，不再参与相等判断。
+// 兼容三种入参：已有 food_id、词表里的任意叫法、历史数据里的自由文本。
+function toFoodId(value) {
+    if (!value) return '';
+    const raw = String(value);
+    if (dict.BY_ID[raw] || dict.isCustom(raw)) return raw;
+    return dict.resolveId(raw) || ('custom:' + dict.clean(raw));
+}
+
 function hasIngredient(ownedNames, needed) {
-    const target = normalizeName(needed);
+    const target = toFoodId(needed);
     if (!target) return true;
-    return ownedNames.some(function (owned) {
-        const name = normalizeName(owned);
-        if (!name) return false;
-        return name === target || name.indexOf(target) >= 0 || target.indexOf(name) >= 0;
+    return (ownedNames || []).some(function (owned) {
+        return toFoodId(owned) === target;
     });
 }
 
@@ -77,20 +86,25 @@ function allRecipes(cloudRows) {
 }
 
 // 反向匹配：按用户勾选的食材，分出「立即可做」与「只差 1 样」。
-function match(selectedNames, cloudRows) {
-    const owned = (selectedNames || []).map(normalizeName).filter(Boolean);
+// ctx 决定食材名用谁的叫法展示；分享给外部好友时传 external，强制通用主名。
+function match(selectedNames, cloudRows, ctx) {
+    const labelCtx = ctx || foodNames.CTX_INTERNAL;
+    const owned = (selectedNames || []).map(toFoodId).filter(Boolean);
     const ready = [];
     const missingOne = [];
     for (const recipe of allRecipes(cloudRows)) {
         const needed = recipe.mainItems || [];
         if (needed.length === 0) continue;
-        const matched = needed.filter(function (item) { return hasIngredient(owned, item); });
-        const missing = needed.filter(function (item) { return !hasIngredient(owned, item); });
+        const matched = needed.filter(function (item) { return owned.indexOf(toFoodId(item)) >= 0; });
+        const missing = needed.filter(function (item) { return owned.indexOf(toFoodId(item)) < 0; });
         const item = Object.assign({}, recipe, {
             matched: matched.length,
             missing: missing,
-            missingText: missing.join('、'),
-            matchedText: matched.join(' + '),
+            // 展示名不能直接当身份传给买菜篮，另存原始名供 data-* 传参。
+            missingRaw: missing.join('|'),
+            missingIds: missing.map(toFoodId),
+            missingText: foodNames.joinLabels(missing, labelCtx),
+            matchedText: foodNames.joinLabels(matched, labelCtx, ' + '),
             totalNeeded: needed.length,
         });
         if (missing.length === 0 && matched.length >= 1) ready.push(item);
@@ -106,17 +120,21 @@ function match(selectedNames, cloudRows) {
 }
 
 function emojiFor(name) {
-    const hit = require('./util').COMMON_FOODS.find(function (f) {
-        return normalizeName(f.name).indexOf(normalizeName(name)) >= 0 || normalizeName(name).indexOf(normalizeName(f.name)) >= 0;
-    });
-    return hit ? hit.emoji : '🥣';
+    return dict.meta(toFoodId(name)).emoji;
 }
 
 function shelfDaysFor(name, fallback) {
-    const hit = require('./util').COMMON_FOODS.find(function (f) {
-        return normalizeName(f.name).indexOf(normalizeName(name)) >= 0 || normalizeName(name).indexOf(normalizeName(f.name)) >= 0;
-    });
-    return hit ? hit.shelfDays : (fallback || 3);
+    const info = dict.meta(toFoodId(name));
+    return info.known ? info.shelfDays : (fallback || 3);
 }
 
-module.exports = { BUILTIN: BUILTIN, cloudRecipeItems: cloudRecipeItems, allRecipes: allRecipes, match: match, emojiFor: emojiFor, shelfDaysFor: shelfDaysFor, hasIngredient: hasIngredient };
+module.exports = {
+    BUILTIN: BUILTIN,
+    cloudRecipeItems: cloudRecipeItems,
+    allRecipes: allRecipes,
+    match: match,
+    emojiFor: emojiFor,
+    shelfDaysFor: shelfDaysFor,
+    hasIngredient: hasIngredient,
+    toFoodId: toFoodId,
+};

@@ -1,6 +1,7 @@
 const { cloud } = require('./utils/cloud');
 const { members } = require('./utils/store');
 const { safeArray } = require('./utils/util');
+const foodNames = require('./utils/food-names');
 
 App({
     globalData: {
@@ -12,7 +13,10 @@ App({
         this.householdKey = wx.getStorageSync('household_key') || '';
         this.householdName = wx.getStorageSync('household_name') || '';
         this.userName = '';
+        this.userId = '';
         this.sessionPromise = null;
+        // 先把本机叫法缓存装进内存，避免登录同步完成前闪一下默认主名。
+        foodNames.loadLocal();
         this.playDoorSound();
     },
 

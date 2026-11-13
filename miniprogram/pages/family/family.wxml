@@ -101,7 +101,7 @@
         <block wx:if="{{buyList.length > 0}}">
             <text class="field-label">🛒 冰箱里还缺 {{buyList.length}} 样</text>
             <view class="buy-list">
-                <text class="buy-chip" wx:for="{{buyList}}" wx:key="*this">{{item}}</text>
+                <text class="buy-chip" wx:for="{{buyList}}" wx:key="foodId">{{item.display}}</text>
             </view>
             <text class="buy-note" wx:if="{{buyNote}}">{{buyNote}}</text>
             <text class="have-line" wx:if="{{haveList.length > 0}}">🧊 冰箱里已有：{{haveListText}}</text>

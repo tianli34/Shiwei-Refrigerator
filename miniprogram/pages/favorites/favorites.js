@@ -3,6 +3,8 @@ const { createAuthMixin } = require('../../utils/auth');
 const stores = require('../../utils/store');
 const recipeLib = require('../../utils/recipes');
 const util = require('../../utils/util');
+const dict = require('../../utils/food-dict');
+const foodNames = require('../../utils/food-names');
 
 // 收藏时间只用来做轻提示，今年不重复显示年份。
 function formatSavedOn(value) {
@@ -16,13 +18,13 @@ function formatSavedOn(value) {
 }
 
 // 把云端行整理成渲染直接可用的结构，避免在 WXML 里做计算。
-function decorate(row, ownedNames) {
+function decorate(row, ownedIds) {
     const items = recipeLib.cloudRecipeItems(row);
     const mainItems = items.mainItems;
     const seasonings = items.seasonings;
     const steps = (Array.isArray(row.steps) ? row.steps : []).filter(Boolean);
-    const matched = mainItems.filter(function (item) { return recipeLib.hasIngredient(ownedNames, item); });
-    const missing = mainItems.filter(function (item) { return !recipeLib.hasIngredient(ownedNames, item); });
+    const matched = mainItems.filter(function (item) { return recipeLib.hasIngredient(ownedIds, item); });
+    const missing = mainItems.filter(function (item) { return !recipeLib.hasIngredient(ownedIds, item); });
     const savedOn = formatSavedOn(row.created_at);
     let statusText = '随手搭配';
     let statusKind = 'far';
@@ -45,14 +47,14 @@ function decorate(row, ownedNames) {
         difficulty: row.difficulty || '有趣',
         tags: (Array.isArray(row.tags) ? row.tags : []).filter(function (tag) { return tag !== 'AI 创意'; }).slice(0, 3),
         mainItems: mainItems,
-        mainItemsText: mainItems.join('、'),
-        seasoningsText: seasonings.join('、'),
+        mainItemsText: foodNames.joinLabels(mainItems),
+        seasoningsText: foodNames.joinLabels(seasonings),
         steps: steps.length ? steps : ['这道菜当时没留下步骤，凭手感发挥吧。'],
         savedOn: savedOn,
         savedText: savedOn ? savedOn + '收藏' : '收藏在册',
         matchedNames: matched,
         missing: missing,
-        missingText: missing.join('、'),
+        missingText: foodNames.joinLabels(missing),
         canCook: mainItems.length > 0 && missing.length === 0,
         statusText: statusText,
         statusKind: statusKind,
@@ -79,8 +81,10 @@ Page(createAuthMixin({
         }
         const rows = (results[0].data || []).filter(function (row) { return row.source === 'ai'; });
         const fridge = results[1].error ? [] : (results[1].data || []);
-        const ownedNames = fridge.filter(function (row) { return !row.consumed; }).map(function (row) { return row.name; });
-        this.items = rows.map(function (row) { return decorate(row, ownedNames); });
+        const ownedIds = fridge.filter(function (row) { return !row.consumed; }).map(function (row) {
+            return row.food_id || recipeLib.toFoodId(row.name);
+        }).filter(Boolean);
+        this.items = rows.map(function (row) { return decorate(row, ownedIds); });
         this.setData({
             viewState: 'ready',
             counts: {
@@ -165,7 +169,7 @@ Page(createAuthMixin({
         util.toast('已取消收藏');
     },
 
-    // 把收藏里的主料带去炼金术，让这些食材重新参与一次合成。
+    // 把收藏里的主料带去炼金术，用稳定身份跨页传值，这些食材重新参与一次合成。
     onCookAgain: function () {
         const detail = this.data.detail;
         if (!detail) return;
@@ -174,7 +178,11 @@ Page(createAuthMixin({
             util.toast('冰箱里还没有这道菜的食材，先把用料补上吧');
             return;
         }
-        wx.setStorageSync('alchemy_preselect', { names: names, from: 'favorites' });
+        wx.setStorageSync('alchemy_preselect', {
+            ids: names.map(recipeLib.toFoodId).filter(Boolean),
+            names: [],
+            from: 'favorites',
+        });
         wx.reLaunch({ url: '/pages/alchemy/alchemy' });
     },
 
@@ -186,11 +194,21 @@ Page(createAuthMixin({
             util.toast('这道菜不缺食材啦');
             return;
         }
+        const seen = {};
+        const unique = [];
+        missing.forEach(function (name) {
+            const id = recipeLib.toFoodId(name);
+            if (seen[id]) return;
+            seen[id] = true;
+            unique.push({ name: dict.canonicalOf(id) || name, id: id, raw: name });
+        });
         let success = 0;
-        for (const name of missing) {
+        for (const item of unique) {
             const result = await stores.shopping.create(stores.scope({
-                name: name,
-                emoji: recipeLib.emojiFor(name),
+                name: item.name,
+                food_id: item.id,
+                raw_name: item.raw,
+                emoji: dict.meta(item.id).emoji,
                 quantity: '',
                 from_recipe: detail.name,
                 done: false,

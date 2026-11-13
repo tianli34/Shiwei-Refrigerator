@@ -20,5 +20,7 @@
     "include": []
   },
   "appid": "wx7e12160f3548314d",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "editorSetting": {}
 }

@@ -2,6 +2,9 @@ const { createAuthMixin } = require('../../utils/auth');
 const stores = require('../../utils/store');
 const ai = require('../../utils/ai');
 const util = require('../../utils/util');
+const dict = require('../../utils/food-dict');
+const foodNames = require('../../utils/food-names');
+const subscribe = require('../../utils/subscribe');
 
 const ZONE_LABEL = { cold: '冷藏', freeze: '冷冻', room: '常温' };
 const EMPTY_EMOJI = { cold: '🥛', freeze: '🧊', room: '🧺' };
@@ -60,9 +63,12 @@ Page(createAuthMixin({
         addMode: 'tag',
         addedThisRound: [],
         addedExpanded: false,
-        commonFoods: util.COMMON_FOODS,
+        commonFoods: util.COMMON_FOODS.map(function (food) {
+            return Object.assign({}, food, { display: food.name });
+        }),
         qtyUnits: QTY_UNITS,
         form: defaultForm(),
+        namePicker: null,
         shelfSource: '',
         shelfTip: MANUAL_SHELF_TIP,
         expiryHint: '',
@@ -94,8 +100,9 @@ Page(createAuthMixin({
             return;
         }
         const rows = (result.data || []).filter(function (row) { return !row.consumed; });
+        // 历史行没有 food_id 时 decorate 会用名称兜底归一，不影响旧数据展示。
         const decorated = rows.map(function (row) {
-            return Object.assign({}, row, { fresh: util.freshness(row) });
+            return Object.assign(foodNames.decorate(row), { fresh: util.freshness(row) });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;
         const expiring = (reminderOn ? decorated.filter(function (row) { return row.fresh.left <= 2; }) : []).sort(function (a, b) {
@@ -108,8 +115,11 @@ Page(createAuthMixin({
             totalCount: decorated.length,
             urgentCount: expiring.length,
             expiring: expiring.slice(0, 8),
-            expiringNames: expiring.slice(0, 3).map(function (row) { return row.name + '(' + row.fresh.label + ')'; }).join('、') || '',
+            expiringNames: subscribe.expiringNamesText(expiring),
             householdLabel: app.householdName ? '🏡 ' + app.householdName + ' · 全家同步中' : '一个人的冰箱，也要好好吃饭',
+            commonFoods: util.COMMON_FOODS.map(function (food) {
+                return Object.assign({}, food, { display: foodNames.labelOf(food.name) });
+            }),
         });
         this.applyZone();
     },
@@ -176,8 +186,11 @@ Page(createAuthMixin({
     },
 
     goAlchemyWithExpiring: function () {
-        const names = (this.data.expiring || []).map(function (row) { return row.name; });
-        wx.setStorageSync('alchemy_preselect', names);
+        // 跨页预选传稳定身份，不传展示名；叫法一变也不会失配。
+        const ids = (this.data.expiring || []).map(function (row) {
+            return row.food_id || dict.resolveId(row.name);
+        }).filter(Boolean);
+        wx.setStorageSync('alchemy_preselect', { ids: ids, names: [] });
         wx.reLaunch({ url: '/pages/alchemy/alchemy' });
     },
 
@@ -208,27 +221,28 @@ Page(createAuthMixin({
 
     onTagTap: function (event) {
         const name = event.currentTarget.dataset.name;
-        const food = util.COMMON_FOODS.filter(function (item) { return item.name === name; })[0];
-        const days = food ? food.shelfDays : 3;
+        const resolved = dict.resolve(name);
+        const info = dict.meta(resolved.id || name);
+        const days = info.known ? info.shelfDays : 3;
         this.setData(Object.assign({
             form: {
                 name: name,
-                emoji: food ? food.emoji : '🥣',
-                zone: food ? food.zone : 'cold',
+                emoji: info.emoji,
+                zone: info.zone,
                 qty: this.data.form.qty,
                 unit: this.data.form.unit,
                 shelfDays: days,
                 note: '',
             },
-        }, shelfCopy(days, name)));
+        }, shelfCopy(days, foodNames.labelOf(name))));
     },
 
     onNameInput: function (event) {
         const value = event.detail.value;
-        const known = util.COMMON_FOODS.filter(function (food) { return food.name.indexOf(value) >= 0 || value.indexOf(food.name) >= 0; })[0];
+        const resolved = dict.resolve(value);
         const patch = {
             'form.name': value,
-            'form.emoji': known ? known.emoji : (value ? '🥣' : '🥬'),
+            'form.emoji': value ? dict.meta(resolved.id || value).emoji : '🥬',
         };
         // 手动改名后，「按某某食材自动填」的说明就不再准确了
         if (this.data.shelfSource && value !== this.data.shelfSource) {
@@ -251,7 +265,10 @@ Page(createAuthMixin({
 
     decorateParsed: function (list) {
         return (list || []).map(function (item) {
-            return Object.assign({}, item, { zoneLabel: ZONE_LABEL[item.zone] || '冷藏' });
+            return Object.assign({}, item, {
+                zoneLabel: ZONE_LABEL[item.zone] || '冷藏',
+                display: foodNames.displayName(item.food_id) || item.name,
+            });
         });
     },
 
@@ -264,6 +281,19 @@ Page(createAuthMixin({
             util.toast('先给食材起个名字吧');
             return;
         }
+        const resolved = dict.resolve(name);
+        let foodId = resolved.id;
+        let canonical = resolved.canonical || name;
+        if (resolved.status === 'ambiguous') {
+            const picked = await foodNames.askAmbiguous(resolved.candidates);
+            if (!picked) {
+                util.toast('已取消，换个说法再录一次吧');
+                return;
+            }
+            foodId = picked;
+            canonical = dict.canonicalOf(picked);
+        }
+        if (!foodId) foodId = 'custom:' + dict.clean(name);
         // 等待云端返回期间用户可能又改了表单，先把入库值与回显值全部算成快照
         const days = clampShelfDays(form.shelfDays);
         const emoji = form.emoji || '🥣';
@@ -273,7 +303,9 @@ Page(createAuthMixin({
         let result;
         try {
             result = await stores.ingredients.create(stores.scope({
-                name: name,
+                name: canonical,
+                food_id: foodId,
+                raw_name: name,
                 emoji: emoji,
                 zone: zone,
                 quantity: quantity,
@@ -290,9 +322,13 @@ Page(createAuthMixin({
             util.toast(util.errorMessage(result.error, '没放进去，请重试'));
             return;
         }
+        // 用户反复用自己的叫法录入，第三次起自动成为展示名。
+        foodNames.learn(name, foodId);
+        const display = foodNames.displayName(foodId) || canonical;
         const item = {
             id: (result.data && result.data.id) || ('local-' + this.data.addedThisRound.length),
-            name: name,
+            name: display,
+            display: display,
             emoji: emoji,
             quantity: quantity,
             zone: zone,
@@ -305,7 +341,7 @@ Page(createAuthMixin({
             addMode: 'tag',
             addedThisRound: this.data.addedThisRound.concat([item]),
         }, shelfCopy(3, '')));
-        util.toast(name + ' 已住进冰箱 🧊');
+        util.toast(display + ' 已住进冰箱 🧊');
         await this.loadData();
     },
 
@@ -378,12 +414,32 @@ Page(createAuthMixin({
     addParsed: async function () {
         const list = this.data.parsedFoods;
         if (!list.length) return;
+        // 有歧义的叫法先逐个问清楚，再统一入库，避免 showLoading 盖住选择弹层。
+        const resolvedList = [];
+        for (const food of list) {
+            let id = food.food_id;
+            let canonical = food.name;
+            if (food.ambiguous && food.ambiguous.length) {
+                const picked = await foodNames.askAmbiguous(food.ambiguous);
+                if (!picked) {
+                    util.toast('「' + (food.raw_name || food.name) + '」已跳过');
+                    continue;
+                }
+                id = picked;
+                canonical = dict.canonicalOf(picked);
+            }
+            resolvedList.push({ food: food, id: id, canonical: canonical });
+        }
+        if (!resolvedList.length) return;
         wx.showLoading({ title: '正在放进冰箱', mask: true });
         let success = 0;
-        for (const food of list) {
+        for (const entry of resolvedList) {
+            const food = entry.food;
             const days = clampShelfDays(food.shelf_days);
             const result = await stores.ingredients.create(stores.scope({
-                name: food.name,
+                name: entry.canonical,
+                food_id: entry.id,
+                raw_name: food.raw_name || food.name,
                 emoji: food.emoji || '🥣',
                 zone: food.zone || 'cold',
                 quantity: food.quantity || '',
@@ -393,11 +449,53 @@ Page(createAuthMixin({
                 note: '',
                 consumed: false,
             }));
-            if (!result.error) success += 1;
+            if (!result.error) {
+                success += 1;
+                foodNames.learn(food.raw_name || food.name, entry.id);
+            }
         }
         wx.hideLoading();
         this.setData({ showAdd: false, parsedFoods: [], parseNote: '' });
         util.toast('放进去 ' + success + ' 样食材 🧊');
+        await this.loadData();
+    },
+
+    // ---------- 千人千面：改叫法 ----------
+    onFoodNameTap: function (event) {
+        const id = event.currentTarget.dataset.id;
+        if (!id || dict.isCustom(id)) {
+            util.toast('自定义食材可以直接编辑名字');
+            return;
+        }
+        const unified = foodNames.status().unified;
+        this.setData({
+            namePicker: {
+                foodId: id,
+                current: foodNames.displayName(id),
+                names: foodNames.availableNames(id),
+                scopeHint: unified ? '当前为家庭统一叫法，修改会同步给同冰箱成员' : '只对你自己生效，可在「我的」里改为家庭统一',
+            },
+        });
+    },
+
+    onNamePickerClose: function () { this.setData({ namePicker: null }); },
+
+    onNamePickerPick: async function (event) {
+        const picker = this.data.namePicker;
+        if (!picker) return;
+        const scope = foodNames.status().unified ? 'household' : 'personal';
+        await foodNames.setPreference(picker.foodId, event.detail.name, { scope: scope });
+        this.setData({ namePicker: null });
+        util.toast('以后就叫它「' + event.detail.name + '」啦');
+        await this.loadData();
+    },
+
+    onNamePickerReset: async function () {
+        const picker = this.data.namePicker;
+        if (!picker) return;
+        await foodNames.clearPreference(picker.foodId, foodNames.status().unified ? 'household' : 'personal');
+        this.setData({ namePicker: null });
+        util.toast('已恢复默认叫法');
         await this.loadData();
     },
 }));

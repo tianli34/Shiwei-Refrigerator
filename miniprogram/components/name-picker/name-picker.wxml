@@ -1,0 +1,23 @@
+<view class="np-mask" wx:if="{{visible}}" bindtap="onClose"></view>
+<view class="np-sheet" wx:if="{{visible}}" catchtap="noop">
+    <view class="np-handle"></view>
+    <text class="np-title">这个食材，你想叫它什么？</text>
+    <text class="np-sub">只改变显示叫法，菜谱匹配和冰箱库存都不受影响</text>
+    <text class="np-scope" wx:if="{{scopeHint}}">{{scopeHint}}</text>
+    <view class="np-grid">
+        <view
+            wx:for="{{names}}"
+            wx:key="*this"
+            class="np-chip {{item == current ? 'np-chip-on' : ''}}"
+            data-name="{{item}}"
+            bindtap="onPick"
+        >{{item}}</view>
+    </view>
+    <text class="np-label">或者自己写一个</text>
+    <view class="np-row">
+        <input class="np-input" placeholder="比如 洋山芋" value="{{custom}}" bindinput="onCustomInput" maxlength="12" />
+        <view class="np-btn" bindtap="onCustomConfirm">用这个</view>
+    </view>
+    <view class="np-reset" bindtap="onReset">恢复默认叫法</view>
+    <view class="np-cancel" bindtap="onClose">取消</view>
+</view>

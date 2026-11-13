@@ -1,5 +1,6 @@
 const stores = require('../../utils/store');
 const util = require('../../utils/util');
+const foodNames = require('../../utils/food-names');
 
 function readMine(code) {
     const all = wx.getStorageSync('my_votes') || {};
@@ -63,7 +64,9 @@ Page({
         const mine = this.data.mineVotes;
         const decorated = menu.map(function (item) {
             return Object.assign({}, item, {
-                mainItemsText: (item.mainItems || []).join('、'),
+                // 点菜板是给外部好友看的，食材一律用全国通用叫法，不用主厨的方言。
+                mainItemsText: foodNames.joinLabels(item.mainItems || [], foodNames.CTX_EXTERNAL),
+                missingText: foodNames.joinLabels(item.missing || [], foodNames.CTX_EXTERNAL) || item.missingText,
                 voteCount: counter[item.name] || 0,
                 mineVoted: mine.indexOf(item.name) >= 0,
             });

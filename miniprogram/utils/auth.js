@@ -1,5 +1,7 @@
 // 页面登录门禁：每个 tab 页 onShow 重新校验会话，登录成功后才允许读写用户数据。
 const { cloud } = require('./cloud');
+const foodNames = require('./food-names');
+const foodMigration = require('./food-migration');
 
 function createAuthMixin(options) {
     const originalOnShow = options.onShow;
@@ -31,12 +33,21 @@ function createAuthMixin(options) {
             }
             const user = session.user || null;
             getApp().userName = user && user.name ? user.name : '';
+            getApp().userId = user && user.id ? user.id : '';
             this.setData({ authState: 'signed-in', user: user, authError: '' });
             try {
                 await getApp().loadHousehold();
             } catch (error) {
                 // 家庭关系读取失败不阻塞个人数据
             }
+            try {
+                // 展示名偏好必须在页面 loadData 之前就位，否则会闪一下默认叫法。
+                await foodNames.sync();
+            } catch (error) {
+                // 云端失败时 foodNames 已自动回落到本机缓存，不阻塞页面
+            }
+            // 历史数据回填放后台跑：新页面即使还没回填也能靠 resolveId 兜住。
+            try { foodMigration.run(); } catch (error) { /* 下次启动重试 */ }
             if (typeof this.loadData === 'function') {
                 try {
                     await this.loadData();

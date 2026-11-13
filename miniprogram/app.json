@@ -17,7 +17,8 @@
   },
   "style": "v2",
   "usingComponents": {
-    "contact-button": "/components/contact-button/contact-button"
+    "contact-button": "/components/contact-button/contact-button",
+    "name-picker": "/components/name-picker/name-picker"
   },
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

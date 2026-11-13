@@ -53,10 +53,38 @@
             <view class="setting-row" bindtap="onSubscribeTap">
                 <view>
                     <text class="setting-label">微信服务通知</text>
-                    <text class="setting-hint">需在小程序后台配置订阅消息模板后下发</text>
+                    <text class="setting-hint">{{subscribeHint}}</text>
                 </view>
                 <text class="setting-arrow">›</text>
             </view>
+        </view>
+
+        <view class="card">
+            <text class="section-title">🏷️ 食材叫法</text>
+            <text class="section-sub">番茄还是西红柿、土豆还是洋芋，按你的习惯来</text>
+            <view class="setting-row" bindtap="onOpenRegion">
+                <view>
+                    <text class="setting-label">地域叫法</text>
+                    <text class="setting-hint">{{nameRegionLabel}} · 点这里切换</text>
+                </view>
+                <text class="setting-arrow">›</text>
+            </view>
+            <view class="setting-row">
+                <view>
+                    <text class="setting-label">全家统一叫法</text>
+                    <text class="setting-hint">打开后，改叫法会同步给同一个冰箱的成员</text>
+                </view>
+                <switch checked="{{nameUnified}}" color="#7FB069" bindchange="onUnifiedChange" />
+            </view>
+            <view class="setting-row" bindtap="onPreviewNotice">
+                <view>
+                    <text class="setting-label">提醒文案预览</text>
+                    <text class="setting-hint">看看临期提醒里会怎么叫它</text>
+                </view>
+                <text class="setting-arrow">›</text>
+            </view>
+            <text class="setting-hint" style="display:block;margin-top:12rpx">已单独设置 {{namePrefCount}} 样 · {{nameSyncHint}}</text>
+            <text class="section-sub">在冰箱或买菜篮里点食材名旁的 ✎，可以单独改叫法</text>
         </view>
 
         <view class="card" bindtap="goFavorites">
@@ -102,4 +130,19 @@
     </block>
 
     <tab-bar current="profile" />
+
+    <view class="mask" wx:if="{{showRegionSheet}}" bindtap="onCloseRegion"></view>
+    <view class="sheet" wx:if="{{showRegionSheet}}">
+        <view class="sheet-handle"></view>
+        <text class="sheet-title">选一套你熟悉的叫法</text>
+        <text class="sheet-sub">只改变显示，不影响菜谱匹配和冰箱库存</text>
+        <view class="setting-row" style="border-bottom:1rpx solid #eef1e9" wx:for="{{nameRegions}}" wx:key="key" data-key="{{item.key}}" bindtap="onPickRegion">
+            <view>
+                <text class="setting-label" style="display:block">{{item.label}} {{item.on ? '✓' : ''}}</text>
+                <text class="setting-hint" style="display:block">{{item.hint}}</text>
+            </view>
+            <text class="setting-arrow">›</text>
+        </view>
+        <view class="btn-ghost" style="margin-top:20rpx" bindtap="onCloseRegion">取消</view>
+    </view>
 </view>

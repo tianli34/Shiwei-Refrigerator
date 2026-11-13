@@ -54,7 +54,7 @@
                 <view class="check" data-id="{{item.id}}" data-done="0" bindtap="onToggle"></view>
                 <text class="item-emoji">{{item.emoji}}</text>
                 <view class="item-copy">
-                    <text class="item-name">{{item.name}}</text>
+                    <text class="item-name" data-id="{{item.food_id}}" catchtap="onItemNameTap">{{item.display}} <text style="font-size:22rpx;color:#9aa897">✎</text></text>
                     <text class="item-from" wx:if="{{item.from_recipe}}">来自：{{item.from_recipe}}</text>
                 </view>
                 <text class="item-del" data-id="{{item.id}}" bindtap="onRemove">×</text>
@@ -68,7 +68,7 @@
                 <view class="item item-done" wx:for="{{doneItems}}" wx:key="id">
                     <view class="check check-on" data-id="{{item.id}}" data-done="1" bindtap="onToggle">✓</view>
                     <text class="item-emoji">{{item.emoji}}</text>
-                    <view class="item-copy"><text class="item-name">{{item.name}}</text></view>
+                    <view class="item-copy"><text class="item-name">{{item.display}}</text></view>
                     <text class="item-del" data-id="{{item.id}}" bindtap="onRemove">×</text>
                 </view>
             </block>
@@ -87,4 +87,14 @@
     <!-- 客服消息入口：唤起微信客服会话 -->
     <contact-button mode="fab" source="shopping" />
     <tab-bar current="shopping" />
+    <name-picker
+        visible="{{namePicker ? true : false}}"
+        foodId="{{namePicker.foodId}}"
+        current="{{namePicker.current}}"
+        names="{{namePicker.names}}"
+        scopeHint="{{namePicker.scopeHint}}"
+        bind:pick="onNamePickerPick"
+        bind:reset="onNamePickerReset"
+        bind:close="onNamePickerClose"
+    />
 </view>

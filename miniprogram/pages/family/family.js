@@ -2,6 +2,8 @@ const { createAuthMixin } = require('../../utils/auth');
 const stores = require('../../utils/store');
 const recipes = require('../../utils/recipes');
 const util = require('../../utils/util');
+const dict = require('../../utils/food-dict');
+const foodNames = require('../../utils/food-names');
 
 function myShareCodes() {
     const saved = wx.getStorageSync('my_share_codes');
@@ -18,15 +20,17 @@ function buildMenuFromStock(stockRows, cloudRows) {
     const stock = (stockRows || []).filter(function (row) { return !row.consumed; });
     if (!stock.length) return { menu: [], reason: 'empty' };
 
-    const names = stock.map(function (row) { return row.name; });
-    const urgentNames = stock.filter(function (row) {
+    const stockId = function (row) { return row.food_id || recipes.toFoodId(row.name); };
+    const ids = stock.map(stockId).filter(Boolean);
+    const urgentIds = stock.filter(function (row) {
         return util.diffDays(row.expiry_on) <= URGENT_DAYS;
-    }).map(function (row) { return row.name; });
+    }).map(stockId).filter(Boolean);
 
-    const matched = recipes.match(names, cloudRows || []);
+    // 菜单要转发给外部好友点菜，食材名一律用通用叫法生成快照。
+    const matched = recipes.match(ids, cloudRows || [], foodNames.CTX_EXTERNAL);
     const withUrgency = function (recipe) {
         const hits = (recipe.mainItems || []).filter(function (name) {
-            return recipes.hasIngredient(urgentNames, name);
+            return recipes.hasIngredient(urgentIds, name);
         }).length;
         return Object.assign({}, recipe, { urgentHits: hits });
     };
@@ -59,7 +63,8 @@ function buildMenuFromStock(stockRows, cloudRows) {
             emoji: item.emoji,
             minutes: item.minutes,
             mainItems: item.mainItems,
-            missingText: (item.missing || []).join('、'),
+            missing: item.missing || [],
+            missingText: foodNames.joinLabels(item.missing || [], foodNames.CTX_EXTERNAL),
         };
     });
     return { menu: menu, reason: menu.length ? '' : 'no-match' };
@@ -280,7 +285,7 @@ Page(createAuthMixin({
         try { menu = JSON.parse(share ? share.recipe_ids : '[]'); } catch (error) { menu = []; }
         const wanted = {};
         menu.forEach(function (item) { wanted[item.name] = item; });
-        // 被点中的菜所需主料，先去重
+        // 被点中的菜所需主料，按 food_id 去重（番茄和西红柿算同一样）
         const needed = [];
         const seen = {};
         votes.forEach(function (vote) {
@@ -288,21 +293,27 @@ Page(createAuthMixin({
             if (!dish) return;
             (dish.mainItems || []).forEach(function (name) {
                 const clean = String(name || '').trim();
-                if (clean && !seen[clean]) { seen[clean] = true; needed.push(clean); }
+                if (!clean) return;
+                const id = recipes.toFoodId(clean);
+                if (seen[id]) return;
+                seen[id] = true;
+                needed.push({ raw: clean, id: id });
             });
         });
 
         // 菜单是生成时的快照，是否要买以「当前库存」为准：没吃掉、没过期的才算有。
         // 库存读取失败时退回全部主料，宁可多列也不漏买，并给出提示。
         const stockFailed = !!stockResult.error;
-        const stockNames = stockFailed ? [] : (stockResult.data || [])
+        const stockIds = stockFailed ? [] : (stockResult.data || [])
             .filter(function (row) { return !row.consumed && util.diffDays(row.expiry_on) >= 0; })
-            .map(function (row) { return row.name; });
+            .map(function (row) { return row.food_id || recipes.toFoodId(row.name); })
+            .filter(Boolean);
         const buyList = [];
         const haveList = [];
-        needed.forEach(function (name) {
-            if (!stockFailed && recipes.hasIngredient(stockNames, name)) haveList.push(name);
-            else buyList.push(name);
+        needed.forEach(function (item) {
+            const row = { name: item.raw, display: foodNames.labelOf(item.id), foodId: item.id };
+            if (!stockFailed && stockIds.indexOf(item.id) >= 0) haveList.push(row);
+            else buyList.push(row);
         });
         this.setData({
             showVotes: true,
@@ -311,7 +322,7 @@ Page(createAuthMixin({
             voteTotal: votes.length,
             buyList: buyList,
             haveList: haveList,
-            haveListText: haveList.join('、'),
+            haveListText: haveList.map(function (row) { return row.display; }).join('、'),
             buyNote: stockFailed ? '库存没读到，先按全部主料列出，加篮子前可以自己删减' : '',
         });
     },
@@ -319,32 +330,34 @@ Page(createAuthMixin({
     closeVotes: function () { this.setData({ showVotes: false }); },
 
     onBuyListToBasket: async function () {
-        const names = this.data.buyList;
-        if (!names.length) return;
-        // 已在买菜篮里、还没勾完成的，不再重复加
+        const items = this.data.buyList;
+        if (!items.length) return;
+        // 已在买菜篮里、还没勾完成的，按身份判重，不再重复加
         let basket = { data: [], error: null };
         try { basket = await stores.shopping.list(); } catch (error) { basket = { data: [], error: error }; }
         const existing = (basket.error ? [] : (basket.data || []))
             .filter(function (row) { return !row.done; })
-            .map(function (row) { return String(row.name || '').trim(); });
-        const pending = names.filter(function (name) { return existing.indexOf(name) < 0; });
+            .map(function (row) { return row.food_id || recipes.toFoodId(row.name); });
+        const pending = items.filter(function (item) { return existing.indexOf(item.foodId) < 0; });
         if (!pending.length) {
             util.toast('这些已经在买菜篮里啦 🧺');
             this.setData({ showVotes: false });
             return;
         }
         let success = 0;
-        for (const name of pending) {
+        for (const item of pending) {
             const result = await stores.shopping.create(stores.scope({
-                name: name,
-                emoji: recipes.emojiFor(name),
+                name: dict.canonicalOf(item.foodId) || item.name,
+                food_id: item.foodId,
+                raw_name: item.name,
+                emoji: recipes.emojiFor(item.name),
                 quantity: '',
                 from_recipe: '点菜板汇总',
                 done: false,
             }));
             if (!result.error) success += 1;
         }
-        const skipped = names.length - pending.length;
+        const skipped = items.length - pending.length;
         util.toast('新加进买菜篮 ' + success + ' 样' + (skipped ? '（跳过 ' + skipped + ' 样已有的）' : '') + ' 🧺');
         this.setData({ showVotes: false });
     },

@@ -90,7 +90,7 @@
                         <text class="food-emoji">{{item.emoji}}</text>
                         <text class="food-days">{{item.fresh.label}}</text>
                     </view>
-                    <text class="food-name">{{item.name}}</text>
+                    <text class="food-name" data-id="{{item.food_id}}" catchtap="onFoodNameTap">{{item.display}} <text class="food-edit">✎</text></text>
                     <text class="food-qty">{{item.quantity || '数量没记'}}</text>
                     <view class="bar"><view class="bar-fill bar-{{item.fresh.level}}" style="width:{{item.fresh.percent}}%"></view></view>
                     <view class="food-actions" wx:if="{{expandedItem == item.id}}">
@@ -122,6 +122,16 @@
     <!-- 客服消息入口：唤起微信客服会话 -->
     <contact-button mode="fab" source="index" />
     <tab-bar current="index" />
+    <name-picker
+        visible="{{namePicker ? true : false}}"
+        foodId="{{namePicker.foodId}}"
+        current="{{namePicker.current}}"
+        names="{{namePicker.names}}"
+        scopeHint="{{namePicker.scopeHint}}"
+        bind:pick="onNamePickerPick"
+        bind:reset="onNamePickerReset"
+        bind:close="onNamePickerClose"
+    />
 
     <!-- 极速录入弹层 -->
     <view class="mask" wx:if="{{showAdd}}" bindtap="closeAddSheet"></view>
@@ -146,7 +156,7 @@
                     class="tag {{form.name == item.name ? 'tag-on' : ''}}"
                     data-name="{{item.name}}"
                     bindtap="onTagTap"
-                >{{item.emoji}} {{item.name}}</view>
+                >{{item.emoji}} {{item.display}}</view>
             </view>
             <text class="field-label">也能自己写</text>
             <input class="field-input" placeholder="食材名，比如 鲜牛奶" value="{{form.name}}" bindinput="onNameInput" />
@@ -198,7 +208,7 @@
                     <view class="parsed-item" wx:for="{{addedThisRound}}" wx:key="id">
                         <text class="parsed-emoji">{{item.emoji}}</text>
                         <view class="parsed-copy">
-                            <text class="parsed-name">{{item.name}}</text>
+                            <text class="parsed-name">{{item.display}}</text>
                             <text class="parsed-meta">{{item.quantity || '数量没记'}} · 还能放 {{item.shelfDays}} 天 · {{item.zoneLabel}}</text>
                         </view>
                     </view>
@@ -229,10 +239,10 @@
         <block wx:if="{{parsedFoods.length > 0}}">
             <text class="field-label">认出了这些（{{parsedFoods.length}} 样）</text>
             <view class="parsed-list">
-                <view class="parsed-item" wx:for="{{parsedFoods}}" wx:key="name">
+                <view class="parsed-item" wx:for="{{parsedFoods}}" wx:key="raw_name">
                     <text class="parsed-emoji">{{item.emoji}}</text>
                     <view class="parsed-copy">
-                        <text class="parsed-name">{{item.name}}</text>
+                        <text class="parsed-name">{{item.display}}</text>
                         <text class="parsed-meta">{{item.quantity || '数量没记'}} · 还能放 {{item.shelf_days}} 天 · {{item.zoneLabel}}</text>
                     </view>
                     <text class="parsed-del" data-index="{{index}}" bindtap="removeParsed">×</text>

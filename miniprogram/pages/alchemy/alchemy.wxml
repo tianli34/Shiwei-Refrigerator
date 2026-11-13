@@ -46,7 +46,7 @@
                         bindtap="onFoodTap"
                     >
                         <text class="pick-emoji">{{item.emoji}}</text>
-                        <text class="pick-name">{{item.name}}</text>
+                        <text class="pick-name">{{item.display}}</text>
                         <text class="pick-check" wx:if="{{item.selected}}">✓</text>
                     </view>
                 </view>
@@ -94,7 +94,7 @@
                         <text class="recipe-meta">{{item.minutes}} 分钟 · 已有 {{item.matchedText}}</text>
                         <text class="recipe-need">只差 <text class="need-word">{{item.missingText}}</text></text>
                     </view>
-                    <view class="add-small" data-name="{{item.missingText}}" catchtap="onAddOneMissing">＋买</view>
+                    <view class="add-small" data-name="{{item.missingRaw}}" catchtap="onAddOneMissing">＋买</view>
                 </view>
                 <view class="card empty-state" wx:if="{{missingOne.length === 0}}">
                     <text class="empty-desc">暂时没有「只差一样」的菜，换个组合试试。</text>

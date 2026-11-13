@@ -4,23 +4,25 @@ const { createTableAccess } = require('./workbuddy-data-access');
 const { pick, safeArray } = require('./util');
 
 const COMMON = ['owner_name', 'household_key'];
-const INGREDIENT_FIELDS = COMMON.concat(['name', 'emoji', 'zone', 'quantity', 'shelf_days', 'added_on', 'expiry_on', 'note', 'consumed']);
-const SHOPPING_FIELDS = COMMON.concat(['name', 'emoji', 'quantity', 'from_recipe', 'done']);
+const INGREDIENT_FIELDS = COMMON.concat(['name', 'food_id', 'raw_name', 'emoji', 'zone', 'quantity', 'shelf_days', 'added_on', 'expiry_on', 'note', 'consumed']);
+const SHOPPING_FIELDS = COMMON.concat(['name', 'food_id', 'raw_name', 'emoji', 'quantity', 'from_recipe', 'done']);
 const RECIPE_FIELDS = COMMON.concat(['name', 'emoji', 'main_items', 'seasonings', 'steps', 'minutes', 'difficulty', 'tags', 'source']);
 const SHARE_FIELDS = COMMON.concat(['title', 'share_code', 'recipe_ids', 'status']);
 const HOUSEHOLD_FIELDS = ['owner_name', 'name', 'invite_code'];
 const MEMBER_FIELDS = ['owner_name', 'household_key', 'role'];
+const PREF_FIELDS = COMMON.concat(['food_id', 'preferred_name', 'pref_scope', 'pref_source', 'updated_at']);
+const SETTING_FIELDS = COMMON.concat(['region', 'household_unified', 'updated_at']);
 
 const ingredients = createTableAccess(cloud, {
     table: 'ingredients',
-    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'name', 'emoji', 'zone', 'quantity', 'shelf_days', 'added_on', 'expiry_on', 'note', 'consumed', 'created_at'],
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'name', 'food_id', 'raw_name', 'emoji', 'zone', 'quantity', 'shelf_days', 'added_on', 'expiry_on', 'note', 'consumed', 'created_at'],
     toRow: function (row) { return pick(row, INGREDIENT_FIELDS); },
     orderBy: { column: 'expiry_on', ascending: true },
 });
 
 const shopping = createTableAccess(cloud, {
     table: 'shopping_items',
-    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'name', 'emoji', 'quantity', 'from_recipe', 'done', 'created_at'],
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'name', 'food_id', 'raw_name', 'emoji', 'quantity', 'from_recipe', 'done', 'created_at'],
     toRow: function (row) { return pick(row, SHOPPING_FIELDS); },
     orderBy: { column: 'created_at', ascending: false },
 });
@@ -51,6 +53,21 @@ const members = createTableAccess(cloud, {
     columns: ['id', 'owner_id', 'owner_name', 'household_key', 'role', 'created_at'],
     toRow: function (row) { return pick(row, MEMBER_FIELDS); },
     orderBy: { column: 'created_at', ascending: false },
+});
+
+// 叫法偏好：personal 行只对本人生效，household 行对同一个共享冰箱的成员生效。
+const foodNamePrefs = createTableAccess(cloud, {
+    table: 'food_name_prefs',
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'food_id', 'preferred_name', 'pref_scope', 'pref_source', 'updated_at', 'created_at'],
+    toRow: function (row) { return pick(row, PREF_FIELDS); },
+    orderBy: { column: 'updated_at', ascending: false },
+});
+
+const foodNameSettings = createTableAccess(cloud, {
+    table: 'food_name_settings',
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'region', 'household_unified', 'updated_at', 'created_at'],
+    toRow: function (row) { return pick(row, SETTING_FIELDS); },
+    orderBy: { column: 'updated_at', ascending: false },
 });
 
 function ownerName() {
@@ -99,6 +116,8 @@ module.exports = {
     shares: shares,
     households: households,
     members: members,
+    foodNamePrefs: foodNamePrefs,
+    foodNameSettings: foodNameSettings,
     scope: scope,
     householdScope: householdScope,
     ownerName: ownerName,

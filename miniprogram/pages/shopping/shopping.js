@@ -2,6 +2,8 @@ const { createAuthMixin } = require('../../utils/auth');
 const stores = require('../../utils/store');
 const recipes = require('../../utils/recipes');
 const util = require('../../utils/util');
+const dict = require('../../utils/food-dict');
+const foodNames = require('../../utils/food-names');
 
 Page(createAuthMixin({
     data: {
@@ -10,6 +12,7 @@ Page(createAuthMixin({
         doneItems: [],
         pendingCount: 0,
         newName: '',
+        namePicker: null,
     },
 
     loadData: async function () {
@@ -20,7 +23,7 @@ Page(createAuthMixin({
             util.toast(util.errorMessage(result.error, '清单加载失败'));
             return;
         }
-        const rows = result.data || [];
+        const rows = foodNames.decorateList(result.data || []);
         this.setData({
             viewState: 'ready',
             pendingItems: rows.filter(function (row) { return !row.done; }),
@@ -39,9 +42,24 @@ Page(createAuthMixin({
             util.toast('写下想买的东西吧');
             return;
         }
+        const resolved = dict.resolve(name);
+        let foodId = resolved.id;
+        let canonical = resolved.canonical || name;
+        if (resolved.status === 'ambiguous') {
+            const picked = await foodNames.askAmbiguous(resolved.candidates);
+            if (!picked) {
+                util.toast('已取消，换个叫法再试一次');
+                return;
+            }
+            foodId = picked;
+            canonical = dict.canonicalOf(picked);
+        }
+        if (!foodId) foodId = 'custom:' + dict.clean(name);
         const result = await stores.shopping.create(stores.scope({
-            name: name,
-            emoji: recipes.emojiFor(name),
+            name: canonical,
+            food_id: foodId,
+            raw_name: name,
+            emoji: dict.meta(foodId).emoji,
             quantity: '',
             from_recipe: '',
             done: false,
@@ -50,6 +68,7 @@ Page(createAuthMixin({
             util.toast(util.errorMessage(result.error, '没加上，请重试'));
             return;
         }
+        foodNames.learn(name, foodId);
         this.setData({ newName: '' });
         await this.loadData();
     },
@@ -92,9 +111,10 @@ Page(createAuthMixin({
         });
     },
 
+    // 复制给一起做饭的人，用当前冰箱的叫法更亲切；发给外部好友的点菜板走通用名。
     buildListText: function () {
         const lines = this.data.pendingItems.map(function (item, index) {
-            return (index + 1) + '. ' + item.name + (item.from_recipe ? '（' + item.from_recipe + '）' : '');
+            return (index + 1) + '. ' + (item.display || item.name) + (item.from_recipe ? '（' + item.from_recipe + '）' : '');
         });
         return '拾味冰箱 · 买菜清单 🧺\n' + (lines.length ? lines.join('\n') : '暂时什么都不缺～');
     },
@@ -106,6 +126,43 @@ Page(createAuthMixin({
             success: function () { util.toast('清单已复制，发给 TA 吧 💌'); },
             fail: function () { util.toast('复制失败，请重试'); },
         });
+    },
+
+    onItemNameTap: function (event) {
+        const id = event.currentTarget.dataset.id;
+        if (!id || dict.isCustom(id)) {
+            util.toast('自定义食材可以直接编辑名字');
+            return;
+        }
+        this.setData({
+            namePicker: {
+                foodId: id,
+                current: foodNames.displayName(id),
+                names: foodNames.availableNames(id),
+                scopeHint: foodNames.status().unified ? '家庭统一叫法，会同步给同冰箱成员' : '只对你自己生效',
+            },
+        });
+    },
+
+    onNamePickerClose: function () { this.setData({ namePicker: null }); },
+
+    onNamePickerPick: async function (event) {
+        const picker = this.data.namePicker;
+        if (!picker) return;
+        await foodNames.setPreference(picker.foodId, event.detail.name, {
+            scope: foodNames.status().unified ? 'household' : 'personal',
+        });
+        this.setData({ namePicker: null });
+        util.toast('以后就叫它「' + event.detail.name + '」啦');
+        await this.loadData();
+    },
+
+    onNamePickerReset: async function () {
+        const picker = this.data.namePicker;
+        if (!picker) return;
+        await foodNames.clearPreference(picker.foodId, foodNames.status().unified ? 'household' : 'personal');
+        this.setData({ namePicker: null });
+        await this.loadData();
     },
 
     onShareAppMessage: function () {

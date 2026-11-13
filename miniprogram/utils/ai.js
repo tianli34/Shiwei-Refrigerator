@@ -1,8 +1,8 @@
 // AI 能力：自然语言极速录入、小票识别、奇葩组合创意菜。模型目录运行时获取，不硬编码模型 ID。
 const { cloud } = require('./cloud');
-const { COMMON_FOODS } = require('./util');
+const dict = require('./food-dict');
 
-const SYSTEM_CHEF = '你是「拾味冰箱」的创意厨师。用户会给你冰箱里剩下的食材，你要给出一道「黑暗但合理」、真的能下咽的创意菜。只输出一个 JSON 对象，不要 markdown 代码块，字段：name(菜名), emoji(一个表情), minutes(整数分钟), difficulty(简单/中等/挑战), tags(字符串数组), extra(还需要额外买的食材名数组，没有就空数组), steps(字符串数组，3-5 步，每步不超过 40 字), punchline(一句俏皮点评，不超过 30 字)。不要输出 JSON 以外的任何内容。';
+const SYSTEM_CHEF = '你是「拾味冰箱」的创意厨师。用户会给你冰箱里剩下的食材，你要给出一道「黑暗但合理」、真的能下咽的创意菜。只输出一个 JSON 对象，不要 markdown 代码块，字段：name(菜名), emoji(一个表情), minutes(整数分钟), difficulty(简单/中等/挑战), tags(字符串数组), extra(还需要额外买的食材名数组，一律用全国通用叫法，没有就空数组), steps(字符串数组，3-5 步，每步不超过 40 字), punchline(一句俏皮点评，不超过 30 字)。不要输出 JSON 以外的任何内容。';
 const SYSTEM_PARSER = '你是「拾味冰箱」的食材录入助手。把用户描述的一句话拆成食材清单，只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述，如 两斤/一盒，没有就空串), shelf_days(整数保质期天数), zone(只能是 cold/freeze/room)。从「保质期N天」「放N天」等描述里提取天数。不要输出 JSON 以外的任何内容。';
 const SYSTEM_RECEIPT = '你是「拾味冰箱」的小票识别助手。读取超市小票照片，挑出可食用的生鲜和食品（忽略日用品、购物袋、金额和条码），只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述), shelf_days(整数，按常识估计), zone(只能是 cold/freeze/room)。看不清就输出空数组 []。不要输出 JSON 以外的任何内容。';
 
@@ -96,14 +96,23 @@ function normalizeFoods(parsed) {
     return list.filter(function (item) {
         return item && typeof item.name === 'string' && item.name.trim();
     }).slice(0, 12).map(function (item) {
-        const known = COMMON_FOODS.filter(function (food) {
-            return food.name.indexOf(item.name) >= 0 || String(item.name).indexOf(food.name) >= 0;
-        })[0];
-        const zone = ['cold', 'freeze', 'room'].indexOf(item.zone) >= 0 ? item.zone : (known ? known.zone : 'cold');
-        const days = Number(item.shelf_days) > 0 ? Math.min(365, Math.round(Number(item.shelf_days))) : (known ? known.shelfDays : 3);
+        const raw = String(item.name).trim();
+        const resolved = dict.resolve(raw);
+        const id = resolved.id || ('custom:' + dict.clean(raw));
+        const info = dict.meta(id);
+        const zone = ['cold', 'freeze', 'room'].indexOf(item.zone) >= 0
+            ? item.zone
+            : (info.known ? info.zone : 'cold');
+        const days = Number(item.shelf_days) > 0
+            ? Math.min(365, Math.round(Number(item.shelf_days)))
+            : (info.known ? info.shelfDays : 3);
         return {
-            name: String(item.name).trim().slice(0, 16),
-            emoji: known ? known.emoji : '🥣',
+            // name 存通用主名作为稳定快照；用户原话留在 raw_name 供偏好学习。
+            name: (resolved.canonical || raw).slice(0, 16),
+            food_id: id,
+            raw_name: raw.slice(0, 16),
+            ambiguous: resolved.status === 'ambiguous' ? resolved.candidates : [],
+            emoji: info.emoji,
             zone: zone,
             quantity: String(item.quantity || '').slice(0, 12),
             shelf_days: days,
@@ -121,17 +130,20 @@ function fallbackParse(text) {
     for (const chunk of chunks) {
         const clean = chunk.replace(/^买[了]?/, '').replace(/(保质期|放|能放|可放)\s*\d+\s*天/g, '').trim();
         if (!clean) continue;
-        const known = COMMON_FOODS.filter(function (food) {
-            return clean.indexOf(food.name) >= 0;
-        })[0];
-        const name = known ? known.name : clean.replace(/[两一二三四五六七八九十\d]+(斤|个|盒|袋|根|只|把|瓶)/g, '').slice(0, 12);
-        if (!name) continue;
+        const stripped = clean.replace(/[两一二三四五六七八九十\d]+(斤|个|盒|袋|根|只|把|瓶)/g, '').slice(0, 12);
+        if (!stripped) continue;
+        const resolved = dict.resolve(stripped);
+        const id = resolved.id || ('custom:' + dict.clean(stripped));
+        const info = dict.meta(id);
         out.push({
-            name: name,
-            emoji: known ? known.emoji : '🥣',
-            zone: known ? known.zone : 'cold',
+            name: (resolved.canonical || stripped).slice(0, 16),
+            food_id: id,
+            raw_name: stripped,
+            ambiguous: resolved.status === 'ambiguous' ? resolved.candidates : [],
+            emoji: info.emoji,
+            zone: info.known ? info.zone : 'cold',
             quantity: (clean.match(/[两一二三四五六七八九十\d]+(斤|个|盒|袋|根|只|把|瓶)/) || [''])[0],
-            shelf_days: days || (known ? known.shelfDays : 3),
+            shelf_days: days || (info.known ? info.shelfDays : 3),
         });
     }
     return out.slice(0, 12);
@@ -153,9 +165,14 @@ async function parseReceipt(base64, mime) {
 }
 
 async function creativeRecipe(names, onDelta) {
+    // 喂给模型的一律是通用主名，避免方言叫法让模型把「洋芋」当成陌生食材。
+    const plain = (names || []).map(function (item) {
+        const id = dict.resolveId(item);
+        return id ? dict.canonicalOf(id) : String(item);
+    });
     const answer = await stream([
         { role: 'system', content: SYSTEM_CHEF },
-        { role: 'user', content: '我冰箱里只剩：' + (names || []).join('、') + '。给我一道能真正做出来、又有点离谱的创意菜，并说明还差什么。' },
+        { role: 'user', content: '我冰箱里只剩：' + plain.join('、') + '。给我一道能真正做出来、又有点离谱的创意菜，并说明还差什么。' },
     ], onDelta);
     const parsed = extractJson(answer);
     if (!parsed || !parsed.name) throw new Error('AI 这次没给出完整菜谱，再试一次吧');
@@ -178,5 +195,6 @@ module.exports = {
     parseReceipt: parseReceipt,
     creativeRecipe: creativeRecipe,
     fallbackParse: fallbackParse,
+    normalizeFoods: normalizeFoods,
     extractJson: extractJson,
 };

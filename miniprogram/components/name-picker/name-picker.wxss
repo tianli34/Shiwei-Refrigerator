@@ -1,0 +1,105 @@
+.np-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 40, 32, 0.42);
+    z-index: 90;
+}
+.np-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 91;
+    background: #fffdf7;
+    border-radius: 32rpx 32rpx 0 0;
+    padding: 20rpx 32rpx 56rpx;
+    box-shadow: 0 -8rpx 32rpx rgba(60, 80, 60, 0.08);
+}
+.np-handle {
+    width: 72rpx;
+    height: 8rpx;
+    border-radius: 8rpx;
+    background: #d9dfd2;
+    margin: 0 auto 24rpx;
+}
+.np-title {
+    display: block;
+    font-size: 34rpx;
+    font-weight: 600;
+    color: #2f4034;
+}
+.np-sub {
+    display: block;
+    margin-top: 10rpx;
+    font-size: 25rpx;
+    color: #8a988b;
+    line-height: 1.6;
+}
+.np-scope {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #6b8f5e;
+}
+.np-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16rpx;
+    margin: 28rpx 0 8rpx;
+}
+.np-chip {
+    padding: 14rpx 26rpx;
+    border-radius: 999rpx;
+    background: #f1f5ec;
+    color: #42563f;
+    font-size: 28rpx;
+    border: 2rpx solid transparent;
+}
+.np-chip-on {
+    background: #e3f1d5;
+    color: #3b6d11;
+    border-color: #9dc96b;
+}
+.np-label {
+    display: block;
+    margin: 26rpx 0 12rpx;
+    font-size: 26rpx;
+    color: #6b7a6c;
+}
+.np-row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+}
+.np-input {
+    flex: 1;
+    height: 76rpx;
+    padding: 0 22rpx;
+    border-radius: 18rpx;
+    background: #f5f7f1;
+    font-size: 28rpx;
+    color: #2f4034;
+}
+.np-btn {
+    padding: 18rpx 28rpx;
+    border-radius: 18rpx;
+    background: #8fb85f;
+    color: #fff;
+    font-size: 27rpx;
+}
+.np-reset {
+    margin-top: 28rpx;
+    text-align: center;
+    font-size: 27rpx;
+    color: #a06a3c;
+}
+.np-cancel {
+    margin-top: 18rpx;
+    height: 84rpx;
+    line-height: 84rpx;
+    text-align: center;
+    border-radius: 20rpx;
+    background: #eef1e9;
+    color: #5d6d5c;
+    font-size: 29rpx;
+}

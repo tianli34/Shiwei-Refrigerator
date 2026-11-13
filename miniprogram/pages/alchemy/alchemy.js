@@ -3,6 +3,16 @@ const stores = require('../../utils/store');
 const recipes = require('../../utils/recipes');
 const ai = require('../../utils/ai');
 const util = require('../../utils/util');
+const dict = require('../../utils/food-dict');
+const foodNames = require('../../utils/food-names');
+
+// 预选数据可能是新版的 food_id，也可能是改造前留下的中文名，统一转成 ID。
+function toId(value) {
+    const raw = String(value || '');
+    if (!raw) return '';
+    if (dict.BY_ID[raw] || dict.isCustom(raw)) return raw;
+    return dict.resolveId(raw) || '';
+}
 
 Page(createAuthMixin({
     data: {
@@ -10,6 +20,7 @@ Page(createAuthMixin({
         foodOptions: [],
         selectedCount: 0,
         selectedNames: [],
+        selectedIds: [],
         preselectHint: '',
         hasResult: false,
         ready: [],
@@ -31,29 +42,32 @@ Page(createAuthMixin({
             return;
         }
         this.cloudRows = results[1].error ? [] : (results[1].data || []);
-        const rows = (results[0].data || []).filter(function (row) { return !row.consumed; });
+        const rows = foodNames.decorateList((results[0].data || []).filter(function (row) { return !row.consumed; }));
         rows.sort(function (a, b) {
             return util.diffDays(a.expiry_on) - util.diffDays(b.expiry_on);
         });
         const preselect = wx.getStorageSync('alchemy_preselect');
-        let preNames = [];
+        let preIds = [];
         let preFrom = '';
         if (Array.isArray(preselect)) {
-            preNames = preselect.slice(0, 4);
-        } else if (preselect && Array.isArray(preselect.names)) {
-            preNames = preselect.names.slice(0, 4);
+            preIds = preselect.map(toId).filter(Boolean);
+        } else if (preselect && (Array.isArray(preselect.ids) || Array.isArray(preselect.names))) {
+            const raw = (preselect.ids && preselect.ids.length) ? preselect.ids : (preselect.names || []);
+            preIds = raw.map(toId).filter(Boolean);
             preFrom = preselect.from || '';
         }
         const options = rows.slice(0, 30).map(function (row) {
             return {
                 id: row.id,
-                name: row.name,
+                name: row.canonical || row.name,
+                display: row.display,
+                food_id: row.food_id,
                 emoji: row.emoji,
-                selected: preNames.indexOf(row.name) >= 0,
+                selected: preIds.indexOf(row.food_id) >= 0,
             };
         });
         let hint = '';
-        if (preNames.length) {
+        if (preIds.length) {
             const hit = options.filter(function (item) { return item.selected; }).length;
             if (hit === 0) {
                 hint = '收藏的菜还缺食材，先在冰箱里补上吧 🧺';
@@ -72,8 +86,13 @@ Page(createAuthMixin({
     goFridge: function () { wx.reLaunch({ url: '/pages/index/index' }); },
 
     syncSelected: function () {
-        const names = this.data.foodOptions.filter(function (item) { return item.selected; }).map(function (item) { return item.name; });
-        this.setData({ selectedNames: names, selectedCount: names.length });
+        const picked = this.data.foodOptions.filter(function (item) { return item.selected; });
+        this.setData({
+            // 匹配、入库、跨页传值一律用身份；selectedNames 只留给 AI 与菜谱快照。
+            selectedIds: picked.map(function (item) { return item.food_id; }).filter(Boolean),
+            selectedNames: picked.map(function (item) { return item.name; }),
+            selectedCount: picked.length,
+        });
     },
 
     onFoodTap: function (event) {
@@ -98,7 +117,7 @@ Page(createAuthMixin({
     },
 
     synthesize: function () {
-        const result = recipes.match(this.data.selectedNames, this.cloudRows);
+        const result = recipes.match(this.data.selectedIds, this.cloudRows);
         this.setData({
             hasResult: true,
             ready: result.ready.slice(0, 8),
@@ -115,12 +134,14 @@ Page(createAuthMixin({
         const list = group === 'ready' ? this.data.ready : this.data.missingOne;
         const recipe = list[index];
         if (!recipe) return;
+        const seasonings = recipe.seasonings || [];
         this.setData({
             detail: Object.assign({}, recipe, {
-                mainItemsText: (recipe.mainItems || []).join('、') + ((recipe.seasonings || []).length ? '（调料：' + recipe.seasonings.join('、') + '）' : ''),
+                mainItemsText: foodNames.joinLabels(recipe.mainItems || []) +
+                    (seasonings.length ? '（调料：' + foodNames.joinLabels(seasonings) + '）' : ''),
                 steps: (recipe.steps || []).length ? recipe.steps : ['把食材处理好，按熟悉的方式做熟，趁热吃。'],
                 missing: recipe.missing || [],
-                missingText: (recipe.missing || []).join('、'),
+                missingText: foodNames.joinLabels(recipe.missing || []),
             }),
         });
     },
@@ -128,20 +149,32 @@ Page(createAuthMixin({
     closeDetail: function () { this.setData({ detail: null }); },
 
     addMissing: async function (names, fromRecipe) {
+        // 展示名不能当身份传给买菜篮，这里按 food_id 去重并补上稳定身份。
+        const chunks = [];
+        (names || []).forEach(function (chunk) {
+            String(chunk || '').split('|').forEach(function (part) { chunks.push(part); });
+        });
+        const seen = {};
         const unique = [];
-        (names || []).forEach(function (name) {
-            const clean = String(name || '').trim();
-            if (clean && unique.indexOf(clean) < 0) unique.push(clean);
+        chunks.forEach(function (raw) {
+            const text = String(raw || '').trim();
+            if (!text) return;
+            const id = recipes.toFoodId(text);
+            if (seen[id]) return;
+            seen[id] = true;
+            unique.push({ name: dict.canonicalOf(id) || text, foodId: id, raw: text });
         });
         if (!unique.length) {
             util.toast('没有需要补的食材');
             return;
         }
         let success = 0;
-        for (const name of unique) {
+        for (const item of unique) {
             const result = await stores.shopping.create(stores.scope({
-                name: name,
-                emoji: recipes.emojiFor(name),
+                name: item.name,
+                food_id: item.foodId,
+                raw_name: item.raw,
+                emoji: dict.meta(item.foodId).emoji,
                 quantity: '',
                 from_recipe: fromRecipe || '',
                 done: false,
@@ -181,7 +214,7 @@ Page(createAuthMixin({
             this.setData({
                 aiBusy: false,
                 aiText: '',
-                aiRecipe: Object.assign({}, recipe, { extraText: (recipe.extra || []).join('、') }),
+                aiRecipe: Object.assign({}, recipe, { extraText: foodNames.joinLabels(recipe.extra || []) }),
             });
         } catch (error) {
             this.setData({
@@ -197,9 +230,15 @@ Page(createAuthMixin({
         if (!recipe || this.data.aiSaved) return;
         // extra 是「还需买的食材」而不是调料，并入用料后才能参与缺货判定与反查匹配。
         const mainItems = this.data.selectedNames.slice();
+        const seen = {};
+        mainItems.forEach(function (name) { seen[recipes.toFoodId(name)] = true; });
         (recipe.extra || []).forEach(function (name) {
             const clean = String(name || '').trim();
-            if (clean && mainItems.indexOf(clean) < 0) mainItems.push(clean);
+            if (!clean) return;
+            const id = recipes.toFoodId(clean);
+            if (seen[id]) return;
+            seen[id] = true;
+            mainItems.push(dict.canonicalOf(id) || clean);
         });
         const result = await stores.recipes.create(stores.scope({
             name: recipe.name,
