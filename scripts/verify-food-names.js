@@ -99,6 +99,52 @@ async function main() {
     assert.strictEqual(dish.missingText, '大椒', '缺失食材名应按地域词包展示');
     assert.ok(dish.missingRaw.indexOf('青椒') >= 0, '内部传参仍应保留原始名');
 
+    // ---------- 父子级食材：子类可顶父类，父类顶不了子类 ----------
+    const pork = dict.resolveId('猪肉');
+    const belly = dict.resolveId('五花肉');
+    const loin = dict.resolveId('猪里脊');
+    assert.ok(pork && belly && loin, '猪肉 / 五花肉 / 猪里脊都应落在词表里');
+    assert.strictEqual(dict.parentOf(belly), pork, '五花肉的父级应是猪肉');
+    assert.strictEqual(dict.parentOf(loin), pork, '里脊肉的父级应是猪肉');
+    assert.strictEqual(dict.isSubtype(belly, pork), true, '五花肉应是猪肉的子类');
+    assert.strictEqual(dict.isSubtype(pork, belly), false, '父级不能被子类反过来认');
+    assert.strictEqual(dict.relation(belly, pork), 'subtype', '有五花肉、菜谱要猪肉：可顶替');
+    assert.strictEqual(dict.relation(pork, belly), 'supertype', '有猪肉、菜谱要五花肉：顶不上');
+    assert.strictEqual(dict.relation(loin, belly), 'sibling', '里脊肉 / 五花肉是同父不同支，谁也顶不了谁');
+    assert.strictEqual(recipes.hasIngredient(['五花肉'], '猪肉'), true, '五花肉算有猪肉');
+    assert.strictEqual(recipes.hasIngredient(['里脊肉'], '五花肉'), false, '里脊肉不算有五花肉');
+    assert.strictEqual(recipes.hasIngredient(['猪肉'], '五花肉'), false, '有猪肉也不算有五花肉');
+
+    const cloudRows = [
+        { id: 1, name: '青椒肉丝', main_items: ['猪肉', '青椒'] },
+        { id: 2, name: '红烧肉', main_items: ['五花肉'] },
+    ];
+    const greenPepper = dict.resolveId('青椒');
+    const withBelly = recipes.match([belly, greenPepper], cloudRows);
+    const stirFry = withBelly.ready.filter(function (item) { return item.name === '青椒肉丝'; })[0];
+    assert.ok(stirFry, '有五花肉时「青椒肉丝」应立即可做');
+    assert.strictEqual(stirFry.approxText, '五花肉 代 猪肉', '用子类顶上时要说明换的是哪一样');
+    assert.strictEqual(stirFry.matchedText, '五花肉 + 大椒', '「用到」应报实际下锅的食材，并跟随地域叫法');
+
+    const withLoin = recipes.match([loin], cloudRows);
+    assert.strictEqual(withLoin.ready.filter(function (item) { return item.name === '红烧肉'; }).length, 0,
+        '只有里脊肉时红烧肉不能算立即可做');
+    const braised = withLoin.missingOne.filter(function (item) { return item.name === '红烧肉'; })[0];
+    assert.ok(braised, '部位不对时应落到「只差 1 样」并给出提示');
+    assert.strictEqual(braised.missingText, '五花肉', '缺的仍应是五花肉');
+    assert.strictEqual(braised.hintText, '只有猪里脊，这道菜要五花肉', '提示应说清是部位不对');
+
+    // 「豆腐」以前不在词表里，菜谱要豆腐永远匹配不上；现在它有正式身份和三个子类。
+    const tofu = dict.resolveId('豆腐');
+    const firmTofu = dict.resolveId('老豆腐');
+    assert.ok(tofu && !dict.isCustom(tofu), '豆腐应是词表实体，而不是自定义食材');
+    assert.strictEqual(dict.parentOf(firmTofu), tofu, '老豆腐的父级应是豆腐');
+    assert.strictEqual(recipes.toFoodId('custom:豆腐'), tofu, '历史 custom:豆腐 应升级成正式身份');
+    const tofuSoup = recipes.match([firmTofu, dict.resolveId('海带')], []).ready
+        .filter(function (item) { return item.id === 'b19'; })[0];
+    assert.ok(tofuSoup, '老豆腐 + 海带应能做「豆腐味噌汤」');
+    assert.strictEqual(tofuSoup.approxText, '老豆腐 代 豆腐', '汤里用的是老豆腐要说清楚');
+
     const parsed = ai.normalizeFoods([{ name: '西红柿', quantity: '两个', shelf_days: 6 }]);
     assert.strictEqual(parsed[0].food_id, tomato, 'AI 解析结果应带 food_id');
     assert.strictEqual(parsed[0].raw_name, '西红柿', 'AI 解析应保留用户原话');
@@ -106,8 +152,9 @@ async function main() {
     const fallback = ai.fallbackParse('买了洋芋、鸡蛋');
     assert.ok(fallback.some(function (item) { return item.food_id === potato; }), '离线兜底也应归一');
 
-    console.log('PASS: 归一 / 歧义 / 优先级链 / 外部回退 / 菜谱 ID 匹配 / AI 解析 全部通过');
-    console.log('实体数 ' + Object.keys(dict.BY_ID).length + '，地域词包 ' + dict.regionList().length + ' 套');
+    console.log('PASS: 归一 / 歧义 / 优先级链 / 外部回退 / 菜谱 ID 匹配 / AI 解析 / 父子级食材 全部通过');
+    console.log('实体数 ' + Object.keys(dict.BY_ID).length + '，父子关系 ' + Object.keys(dict.PARENT).length +
+        ' 条，地域词包 ' + dict.regionList().length + ' 套');
 }
 
 main().catch(function (error) {

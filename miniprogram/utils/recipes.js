@@ -26,6 +26,10 @@ const BUILTIN = [
     { id: 'b22', name: '酸辣白菜', emoji: '🌶️', mainItems: ['白菜', '辣椒'], seasonings: ['醋', '糖'], minutes: 12, difficulty: '简单', tags: ['下饭'], steps: ['白菜帮斜切片', '干辣椒爆香后下白菜大火炒', '沿锅边淋醋，加少许糖'] },
     { id: 'b23', name: '紫菜蛋花汤', emoji: '🍥', mainItems: ['紫菜', '鸡蛋'], seasonings: ['盐', '香油'], minutes: 8, difficulty: '简单', tags: ['汤', '快手'], steps: ['水开后放紫菜', '淋蛋液画圈', '加盐和香油关火'] },
     { id: 'b24', name: '土豆炖牛肉', emoji: '🥩', mainItems: ['土豆', '牛肉'], seasonings: ['生抽', '姜'], minutes: 55, difficulty: '中等', tags: ['硬菜'], steps: ['牛肉焯水后加姜炖 35 分钟', '下土豆块再炖 15 分钟', '加生抽调味收汁'] },
+    // 这两道是父子级食材的样板：回锅肉只要「猪肉」，五花肉/里脊肉都能上；
+    // 红烧肉点名「五花肉」，只有里脊肉时不能算能做，要提示部位不对。
+    { id: 'b25', name: '回锅肉', emoji: '🥓', mainItems: ['猪肉', '青椒'], seasonings: ['豆瓣酱', '生抽'], minutes: 25, difficulty: '中等', tags: ['下饭', '硬菜'], steps: ['猪肉整块煮到七分熟，晾凉切薄片', '下锅煸到微微卷边出油', '加豆瓣酱炒出红油，下青椒断生'] },
+    { id: 'b26', name: '红烧肉', emoji: '🍖', mainItems: ['五花肉', '姜'], seasonings: ['冰糖', '生抽', '料酒'], minutes: 70, difficulty: '中等', tags: ['硬菜', '解馋'], steps: ['五花肉切麻将块，冷水下锅焯水', '冰糖炒出糖色，下肉块裹匀', '加姜、生抽、料酒和热水，小火炖 50 分钟收汁'] },
 ];
 
 function normalizeName(value) {
@@ -37,16 +41,118 @@ function normalizeName(value) {
 function toFoodId(value) {
     if (!value) return '';
     const raw = String(value);
-    if (dict.BY_ID[raw] || dict.isCustom(raw)) return raw;
+    if (dict.BY_ID[raw]) return raw;
+    if (dict.isCustom(raw)) {
+        // 词表补了新实体后（例如「豆腐」），历史行还停在 custom:豆腐。
+        // 只认精确主名升级，不做模糊猜测，免得把自定义食材硬塞进别的身份。
+        return dict.BY_CANONICAL[dict.customLabel(raw)] || raw;
+    }
     return dict.resolveId(raw) || ('custom:' + dict.clean(raw));
+}
+
+// 库存对单一样用料的命中程度：exact / subtype / sibling / supertype / none。
+// 一样菜最多被一样库存代表，取其中最精确的那条关系（五花肉优先于猪肉）。
+const RELATION_RANK = { exact: 3, subtype: 2, supertype: 1, sibling: 1, none: 0 };
+
+function relationOf(ownedIds, neededId) {
+    let best = 'none';
+    (ownedIds || []).forEach(function (owned) {
+        const kind = dict.relation(owned, neededId);
+        if (RELATION_RANK[kind] > RELATION_RANK[best]) best = kind;
+    });
+    return best;
+}
+
+// 真正顶上去的那样子类库存：菜谱要猪肉、冰箱里是五花肉，就返回五花肉。
+function standInFor(ownedIds, neededId) {
+    return (ownedIds || []).filter(function (owned) {
+        return dict.relation(owned, neededId) === 'subtype';
+    })[0] || '';
+}
+
+// 用料 vs 库存的解释层：谁命中、谁缺、谁在「拿别的东西顶」、谁「够不上」。
+// 所有页面（炼金术 / 收藏 / 点菜板）都从这里拿结论，避免各写一套判定。
+function explain(ownedIds, neededNames, ctx) {
+    const labelCtx = ctx || foodNames.CTX_INTERNAL;
+    const owned = (ownedIds || []).map(toFoodId).filter(Boolean);
+    const matched = [];
+    const used = [];
+    const missing = [];
+    const substitutes = [];
+    const hints = [];
+
+    (neededNames || []).forEach(function (item) {
+        if (!item) return;
+        const neededId = toFoodId(item);
+        const kind = relationOf(owned, neededId);
+        if (kind === 'exact') {
+            matched.push(item);
+            used.push(neededId);
+            return;
+        }
+        if (kind === 'subtype') {
+            const stand = standInFor(owned, neededId);
+            matched.push(item);
+            used.push(stand || neededId);
+            substitutes.push({
+                needed: item,
+                neededId: neededId,
+                used: stand || neededId,
+                neededText: foodNames.labelOf(neededId, labelCtx),
+                usedText: foodNames.labelOf(stand || neededId, labelCtx),
+            });
+            return;
+        }
+        missing.push(item);
+        // 顶不上但说得清原因：要么库存更宽泛（只有猪肉），要么是别的部位（只有里脊肉）。
+        // 两种情况都值得提示一句「这道菜到底要什么」。
+        if (kind === 'supertype' || kind === 'sibling') {
+            const broad = owned.filter(function (one) {
+                const oneKind = dict.relation(one, neededId);
+                return oneKind === 'supertype' || oneKind === 'sibling';
+            })[0] || '';
+            hints.push({
+                needed: item,
+                neededId: neededId,
+                have: broad,
+                neededText: foodNames.labelOf(neededId, labelCtx),
+                haveText: foodNames.labelOf(broad, labelCtx),
+            });
+        }
+    });
+
+    // 「用到」只报实际下锅的东西：菜谱要猪肉、冰箱里是五花肉，就写五花肉。
+    const seen = {};
+    const usedUnique = used.filter(function (id) {
+        if (seen[id]) return false;
+        seen[id] = true;
+        return true;
+    });
+
+    return {
+        matched: matched,
+        missing: missing,
+        used: usedUnique,
+        substitutes: substitutes,
+        hints: hints,
+        matchedText: foodNames.joinLabels(usedUnique, labelCtx, ' + '),
+        missingText: foodNames.joinLabels(missing, labelCtx),
+        // 「五花肉 代 猪肉」：能直接做，但得让人知道是拿别的部位顶的。
+        approxText: substitutes.map(function (item) {
+            return item.usedText + ' 代 ' + item.neededText;
+        }).join('；'),
+        // 「只有猪里脊，这道菜要五花肉」：做不成，且原因不是「没买肉」而是「部位不对」。
+        hintText: hints.map(function (item) {
+            return '只有' + item.haveText + '，这道菜要' + item.neededText;
+        }).join('；'),
+    };
 }
 
 function hasIngredient(ownedNames, needed) {
     const target = toFoodId(needed);
     if (!target) return true;
-    return (ownedNames || []).some(function (owned) {
-        return toFoodId(owned) === target;
-    });
+    const kind = relationOf((ownedNames || []).map(toFoodId).filter(Boolean), target);
+    return kind === 'exact' || kind === 'subtype';
 }
 
 // 云端 recipes 行的用料归一化。早期 AI 菜谱曾把「还需买的食材」(extra) 写进
@@ -95,20 +201,28 @@ function match(selectedNames, cloudRows, ctx) {
     for (const recipe of allRecipes(cloudRows)) {
         const needed = recipe.mainItems || [];
         if (needed.length === 0) continue;
-        const matched = needed.filter(function (item) { return owned.indexOf(toFoodId(item)) >= 0; });
-        const missing = needed.filter(function (item) { return owned.indexOf(toFoodId(item)) < 0; });
+        const info = explain(owned, needed, labelCtx);
         const item = Object.assign({}, recipe, {
-            matched: matched.length,
-            missing: missing,
+            matched: info.matched.length,
+            missing: info.missing,
             // 展示名不能直接当身份传给买菜篮，另存原始名供 data-* 传参。
-            missingRaw: missing.join('|'),
-            missingIds: missing.map(toFoodId),
-            missingText: foodNames.joinLabels(missing, labelCtx),
-            matchedText: foodNames.joinLabels(matched, labelCtx, ' + '),
+            missingRaw: info.missing.join('|'),
+            missingIds: info.missing.map(toFoodId),
+            missingText: info.missingText,
+            matchedText: info.matchedText,
+            substitutes: info.substitutes,
+            approxText: info.approxText,
+            hints: info.hints,
+            hintText: info.hintText,
             totalNeeded: needed.length,
         });
-        if (missing.length === 0 && matched.length >= 1) ready.push(item);
-        else if (missing.length === 1 && matched.length >= 1) missingOne.push(item);
+        if (info.missing.length === 0 && info.matched.length >= 1) {
+            ready.push(item);
+        } else if (info.missing.length === 1 && (info.matched.length >= 1 || info.hints.length > 0)) {
+            // 只差一样就够得着。就算一样都没命中，只要是「部位不对」这种能解释清楚的
+            // 缺口，也放进来提示一句 —— 比默默不出现更有用。
+            missingOne.push(item);
+        }
     }
     const byScore = function (a, b) {
         if (b.matched !== a.matched) return b.matched - a.matched;
@@ -133,6 +247,8 @@ module.exports = {
     cloudRecipeItems: cloudRecipeItems,
     allRecipes: allRecipes,
     match: match,
+    explain: explain,
+    relationOf: relationOf,
     emojiFor: emojiFor,
     shelfDaysFor: shelfDaysFor,
     hasIngredient: hasIngredient,

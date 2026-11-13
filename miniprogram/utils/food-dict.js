@@ -16,8 +16,21 @@ DATA.forEach(function (entry) {
     });
 });
 
+// 父子关系：parent_id 表示「它是父级的一种」，是物种/部位关系，不是做法相似。
+// 做菜时子类可以顶替父类（有五花肉，菜谱要猪肉 -> 能炒）；反过来不行
+// （只有里脊肉，菜谱要五花肉 -> 红烧肉的口感就差远了，只能提示补货）。
+const PARENT = {};
+const CHILDREN = {};
+DATA.forEach(function (entry) {
+    if (!entry.parent_id || !BY_ID[entry.parent_id]) return;
+    PARENT[entry.id] = entry.parent_id;
+    if (!CHILDREN[entry.parent_id]) CHILDREN[entry.parent_id] = [];
+    CHILDREN[entry.parent_id].push(entry.id);
+});
+
 // 泛称 / 上位词：只做精确归一，绝不参与模糊包含匹配。
 // 「萝卜」不等于「白萝卜」，「白菜」不等于「大白菜」，硬猜会毁掉菜谱匹配。
+// 真正有父子关系的（五花肉 -> 猪肉）走上面的 parent_id，不走这里。
 const GENERIC_WORDS = [
     '萝卜', '白菜', '青菜', '木耳', '豆芽', '葱', '姜', '蒜', '菜', '瓜', '豆',
     '蛋', '椒', '薯', '菇', '肉', '米', '面', '奶', '菜花', '水栗', '百叶',
@@ -155,6 +168,53 @@ function namesOf(id) {
     });
 }
 
+function parentOf(id) {
+    return PARENT[id] || null;
+}
+
+function childrenOf(id) {
+    return (CHILDREN[id] || []).slice();
+}
+
+// 由近及远的祖先链。数据万一被写成环，这里提前收手，绝不无限递归。
+function ancestorsOf(id) {
+    const chain = [];
+    const seen = {};
+    let cursor = PARENT[id];
+    while (cursor && !seen[cursor] && chain.length < 8) {
+        chain.push(cursor);
+        seen[cursor] = true;
+        cursor = PARENT[cursor];
+    }
+    return chain;
+}
+
+function isSubtype(childId, ancestorId) {
+    if (!childId || !ancestorId || childId === ancestorId) return false;
+    return ancestorsOf(childId).indexOf(ancestorId) >= 0;
+}
+
+// 同父不同支：五花肉和里脊肉都是猪肉，但谁也顶不了谁（红烧肉要的就是那层肥瘦相间）。
+function shareParent(a, b) {
+    const parent = PARENT[a];
+    return !!parent && PARENT[b] === parent;
+}
+
+// 库存 vs 菜谱需求的关系判定，菜谱匹配只看这一个函数：
+//   exact     同一个东西
+//   subtype   库存更具体，可以顶替（有五花肉，菜谱要猪肉）
+//   sibling   同父不同支，顶不上但能提示买哪样（有里脊肉，菜谱要五花肉）
+//   supertype 库存更宽泛，顶不上（只有猪肉，菜谱要五花肉）
+//   none      不搭界
+function relation(ownedId, neededId) {
+    if (!ownedId || !neededId) return 'none';
+    if (ownedId === neededId) return 'exact';
+    if (isSubtype(ownedId, neededId)) return 'subtype';
+    if (isSubtype(neededId, ownedId)) return 'supertype';
+    if (shareParent(ownedId, neededId)) return 'sibling';
+    return 'none';
+}
+
 function meta(id) {
     const fallback = { emoji: '🥣', zone: 'cold', shelfDays: 3, known: false };
     if (!BY_ID[id]) return fallback;
@@ -178,6 +238,8 @@ module.exports = {
     BY_ID: BY_ID,
     BY_WORD: BY_WORD,
     BY_CANONICAL: BY_CANONICAL,
+    PARENT: PARENT,
+    CHILDREN: CHILDREN,
     REGION_PACKS: REGION_PACKS,
     regionList: regionList,
     clean: clean,
@@ -187,5 +249,11 @@ module.exports = {
     customLabel: customLabel,
     canonicalOf: canonicalOf,
     namesOf: namesOf,
+    parentOf: parentOf,
+    childrenOf: childrenOf,
+    ancestorsOf: ancestorsOf,
+    isSubtype: isSubtype,
+    shareParent: shareParent,
+    relation: relation,
     meta: meta,
 };

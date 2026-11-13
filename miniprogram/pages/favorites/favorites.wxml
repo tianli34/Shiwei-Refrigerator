@@ -56,6 +56,7 @@
                         </view>
                         <text class="fav-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · {{item.savedText}}</text>
                         <text class="fav-items" wx:if="{{item.mainItemsText}}">用料：{{item.mainItemsText}}</text>
+                        <text class="fav-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
                         <view class="fav-tags" wx:if="{{item.tags.length > 0}}">
                             <text class="fav-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
                         </view>
@@ -97,6 +98,8 @@
             <text class="step-text">{{item}}</text>
         </view>
 
+        <text class="detail-tip detail-tip-ok" wx:if="{{detail.approxText}}">🔁 {{detail.approxText}}</text>
+        <text class="detail-tip" wx:if="{{detail.hintText}}">⚠️ {{detail.hintText}}</text>
         <text class="detail-tip" wx:if="{{detail.missingText}}">冰箱里还差：{{detail.missingText}}</text>
 
         <view class="btn-yellow" style="margin-top:28rpx" wx:if="{{detail.missing.length > 0}}" bindtap="onAddMissing">🛒 缺的 {{detail.missing.length}} 样加入买菜篮</view>

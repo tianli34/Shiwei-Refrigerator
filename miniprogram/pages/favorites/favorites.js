@@ -23,8 +23,10 @@ function decorate(row, ownedIds) {
     const mainItems = items.mainItems;
     const seasonings = items.seasonings;
     const steps = (Array.isArray(row.steps) ? row.steps : []).filter(Boolean);
-    const matched = mainItems.filter(function (item) { return recipeLib.hasIngredient(ownedIds, item); });
-    const missing = mainItems.filter(function (item) { return !recipeLib.hasIngredient(ownedIds, item); });
+    // 判定统一走 explain：子类顶父类算命中，父类顶子类不算，并留下提示语。
+    const info = recipeLib.explain(ownedIds, mainItems);
+    const matched = info.matched;
+    const missing = info.missing;
     const savedOn = formatSavedOn(row.created_at);
     let statusText = '随手搭配';
     let statusKind = 'far';
@@ -49,12 +51,14 @@ function decorate(row, ownedIds) {
         mainItems: mainItems,
         mainItemsText: foodNames.joinLabels(mainItems),
         seasoningsText: foodNames.joinLabels(seasonings),
+        approxText: info.approxText,
+        hintText: info.hintText,
         steps: steps.length ? steps : ['这道菜当时没留下步骤，凭手感发挥吧。'],
         savedOn: savedOn,
         savedText: savedOn ? savedOn + '收藏' : '收藏在册',
         matchedNames: matched,
         missing: missing,
-        missingText: foodNames.joinLabels(missing),
+        missingText: info.missingText,
         canCook: mainItems.length > 0 && missing.length === 0,
         statusText: statusText,
         statusKind: statusKind,

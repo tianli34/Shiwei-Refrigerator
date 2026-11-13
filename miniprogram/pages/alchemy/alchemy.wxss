@@ -129,6 +129,24 @@
 .recipe-need { display: block; margin-top: 8rpx; font-size: 23rpx; color: #A1752A; }
 .need-word { font-weight: 700; color: #C97A24; }
 
+/* 用别的部位顶上去（五花肉 代 猪肉）：能做，但要说清楚 */
+.recipe-approx { display: block; margin-top: 8rpx; font-size: 21rpx; color: #5F8A54; line-height: 1.5; }
+
+/* 部位不够（只有里脊肉，这道菜要五花肉）：做不成，得说清为什么 */
+.recipe-hint { display: block; margin-top: 6rpx; font-size: 21rpx; color: #B0762A; line-height: 1.5; }
+
+.detail-note {
+    margin-top: 16rpx;
+    padding: 16rpx 20rpx;
+    border-radius: 16rpx;
+    background: #F3F8EC;
+    font-size: 23rpx;
+    color: #4E7A3E;
+    line-height: 1.6;
+}
+
+.detail-note-warn { background: #FFF6E6; color: #A1752A; }
+
 .add-small {
     padding: 12rpx 18rpx;
     border-radius: 999rpx;

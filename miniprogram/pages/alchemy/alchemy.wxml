@@ -71,6 +71,7 @@
                     <view class="recipe-copy">
                         <text class="recipe-name">{{item.name}}</text>
                         <text class="recipe-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · 用到 {{item.matchedText}}</text>
+                        <text class="recipe-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
                         <view class="recipe-tags">
                             <text class="recipe-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
                         </view>
@@ -93,6 +94,7 @@
                         <text class="recipe-name">{{item.name}}</text>
                         <text class="recipe-meta">{{item.minutes}} 分钟 · 已有 {{item.matchedText}}</text>
                         <text class="recipe-need">只差 <text class="need-word">{{item.missingText}}</text></text>
+                        <text class="recipe-hint" wx:if="{{item.hintText}}">⚠️ {{item.hintText}}</text>
                     </view>
                     <view class="add-small" data-name="{{item.missingRaw}}" catchtap="onAddOneMissing">＋买</view>
                 </view>
@@ -138,6 +140,8 @@
         <text class="detail-emoji">{{detail.emoji}}</text>
         <text class="sheet-title">{{detail.name}}</text>
         <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}} · {{detail.matchedText}}</text>
+        <view class="detail-note" wx:if="{{detail.approxText}}">🔁 {{detail.approxText}}</view>
+        <view class="detail-note detail-note-warn" wx:if="{{detail.hintText}}">⚠️ {{detail.hintText}}</view>
         <text class="field-label">用料</text>
         <text class="detail-need">{{detail.mainItemsText}}</text>
         <text class="field-label">做法</text>

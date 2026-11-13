@@ -82,6 +82,9 @@
 .fav-meta { display: block; margin-top: 8rpx; font-size: 22rpx; color: #9C9284; }
 .fav-items { display: block; margin-top: 8rpx; font-size: 22rpx; color: #7E7466; line-height: 1.5; }
 
+/* 用别的部位顶上（五花肉 代 猪肉）：能做，但得说清楚 */
+.fav-approx { display: block; margin-top: 6rpx; font-size: 21rpx; color: #5F8A54; line-height: 1.5; }
+
 .fav-tags { display: flex; flex-wrap: wrap; margin-top: 10rpx; }
 
 .fav-tag {
@@ -136,3 +139,6 @@
     font-size: 23rpx;
     line-height: 1.6;
 }
+
+/* 「能做，但换了部位」用绿色，和「还差食材」的琥珀色分开 */
+.detail-tip-ok { background: #F1F7E9; color: #4E7A3E; }
