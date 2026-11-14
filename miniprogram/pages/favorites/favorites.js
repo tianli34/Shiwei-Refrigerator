@@ -18,8 +18,10 @@ function formatSavedOn(value) {
 }
 
 // 把云端行整理成渲染直接可用的结构，避免在 WXML 里做计算。
-function decorate(row, ownedIds) {
+// countMap 的键是合池 id（'c12'），这里拿到的却是云端裸行，必须用 recipeKey 补前缀。
+function decorate(row, ownedIds, countMap) {
     const items = recipeLib.cloudRecipeItems(row);
+    const n = Number((countMap || {})[recipeLib.recipeKey(row)]);
     const mainItems = items.mainItems;
     const seasonings = items.seasonings;
     const steps = (Array.isArray(row.steps) ? row.steps : []).filter(Boolean);
@@ -62,6 +64,7 @@ function decorate(row, ownedIds) {
         canCook: mainItems.length > 0 && missing.length === 0,
         statusText: statusText,
         statusKind: statusKind,
+        cookCount: Number.isFinite(n) && n > 0 ? n : 0,
     };
 }
 
@@ -76,7 +79,7 @@ Page(createAuthMixin({
 
     loadData: async function () {
         this.setData({ viewState: 'loading' });
-        const results = await Promise.all([stores.recipes.list(), stores.ingredients.list()]);
+        const results = await Promise.all([stores.recipes.list(), stores.ingredients.list(), stores.cookCountMap()]);
         if (results[0].error) {
             this.items = [];
             this.setData({ viewState: 'error', visible: [], counts: { all: 0, ready: 0 } });
@@ -88,7 +91,8 @@ Page(createAuthMixin({
         const ownedIds = fridge.filter(function (row) { return !row.consumed; }).map(function (row) {
             return row.food_id || recipeLib.toFoodId(row.name);
         }).filter(Boolean);
-        this.items = rows.map(function (row) { return decorate(row, ownedIds); });
+        const counts = results[2] || {};
+        this.items = rows.map(function (row) { return decorate(row, ownedIds, counts); });
         this.setData({
             viewState: 'ready',
             counts: {

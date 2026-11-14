@@ -12,6 +12,8 @@ const HOUSEHOLD_FIELDS = ['owner_name', 'name', 'invite_code'];
 const MEMBER_FIELDS = ['owner_name', 'household_key', 'role'];
 const PREF_FIELDS = COMMON.concat(['food_id', 'preferred_name', 'pref_scope', 'pref_source', 'updated_at']);
 const SETTING_FIELDS = COMMON.concat(['region', 'household_unified', 'updated_at']);
+// 做菜次数：写入白名单。owner_id 由服务端 DEFAULT + RLS 决定，绝不进白名单。
+const COOK_COUNT_FIELDS = COMMON.concat(['recipe_key', 'cook_count']);
 
 const ingredients = createTableAccess(cloud, {
     table: 'ingredients',
@@ -31,6 +33,16 @@ const recipes = createTableAccess(cloud, {
     table: 'recipes',
     columns: ['id', 'owner_id', 'owner_name', 'name', 'emoji', 'main_items', 'seasonings', 'steps', 'minutes', 'difficulty', 'tags', 'source', 'household_key', 'created_at'],
     toRow: function (row) { return pick(row, RECIPE_FIELDS); },
+    orderBy: { column: 'created_at', ascending: false },
+});
+
+// 做菜次数：一行 = 一个家庭里的一道菜。recipe_key 统一标识内置 'b1' 与云端 'c12'。
+// 本轮只读不写；create/update/remove 通路随 createTableAccess 自动具备，后续接 +1 不用重构。
+// FIELDS 与 columns 是双层白名单，少写一处就会写入被丢或读取不返回。
+const recipeCookCounts = createTableAccess(cloud, {
+    table: 'recipe_cook_counts',
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'recipe_key', 'cook_count', 'created_at'],
+    toRow: function (row) { return pick(row, COOK_COUNT_FIELDS); },
     orderBy: { column: 'created_at', ascending: false },
 });
 
@@ -86,6 +98,24 @@ function householdScope(payload) {
     return Object.assign({}, payload, { household_key: (typeof getApp === 'function' && getApp().householdKey) || '' });
 }
 
+// 做菜次数一次拉全：RLS 已按 household_key 过滤，无需再 eq；页面本地合并，避免每张卡片一次请求。
+// 读取失败返回空字典让页面按「全 0」正常渲染、不阻塞主流程；留一条 warn 是为了区分
+// 「云端表还没建好」和「确实一道菜都没做过」——两者在 UI 上长得一模一样。
+async function cookCountMap() {
+    const result = await recipeCookCounts.list();
+    const map = {};
+    if (!result || result.error) {
+        if (result && result.error) console.warn('[cookCountMap] 做菜次数读取失败：', result.error);
+        return map;
+    }
+    (result.data || []).forEach(function (row) {
+        if (!row || !row.recipe_key) return;
+        const n = Number(row.cook_count);
+        map[row.recipe_key] = Number.isFinite(n) && n > 0 ? n : 0;
+    });
+    return map;
+}
+
 async function findHouseholdByCode(code) {
     const result = await cloud.database.from('households').select('id, name, invite_code, owner_id').eq('invite_code', String(code || '').trim().toUpperCase()).limit(1);
     if (result.error) return { data: null, error: result.error };
@@ -118,9 +148,11 @@ module.exports = {
     members: members,
     foodNamePrefs: foodNamePrefs,
     foodNameSettings: foodNameSettings,
+    recipeCookCounts: recipeCookCounts,
     scope: scope,
     householdScope: householdScope,
     ownerName: ownerName,
+    cookCountMap: cookCountMap,
     findHouseholdByCode: findHouseholdByCode,
     findShareByCode: findShareByCode,
     listVotes: listVotes,

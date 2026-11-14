@@ -71,6 +71,7 @@
                     <view class="recipe-copy">
                         <text class="recipe-name">{{item.name}}</text>
                         <text class="recipe-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · 用到 {{item.matchedText}}</text>
+                        <text class="recipe-cooked" wx:if="{{item.cookCount > 0}}">做过 {{item.cookCount}} 次</text>
                         <text class="recipe-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
                         <view class="recipe-tags">
                             <text class="recipe-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
@@ -93,6 +94,7 @@
                     <view class="recipe-copy">
                         <text class="recipe-name">{{item.name}}</text>
                         <text class="recipe-meta">{{item.minutes}} 分钟 · 已有 {{item.matchedText}}</text>
+                        <text class="recipe-cooked" wx:if="{{item.cookCount > 0}}">做过 {{item.cookCount}} 次</text>
                         <text class="recipe-need">只差 <text class="need-word">{{item.missingText}}</text></text>
                         <text class="recipe-hint" wx:if="{{item.hintText}}">⚠️ {{item.hintText}}</text>
                     </view>
@@ -140,6 +142,7 @@
         <text class="detail-emoji">{{detail.emoji}}</text>
         <text class="sheet-title">{{detail.name}}</text>
         <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}} · {{detail.matchedText}}</text>
+        <text class="cooked-note" wx:if="{{detail.cookCount > 0}}">这道菜全家已做过 {{detail.cookCount}} 次</text>
         <view class="detail-note" wx:if="{{detail.approxText}}">🔁 {{detail.approxText}}</view>
         <view class="detail-note detail-note-warn" wx:if="{{detail.hintText}}">⚠️ {{detail.hintText}}</view>
         <text class="field-label">用料</text>

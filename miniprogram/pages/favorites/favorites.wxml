@@ -55,6 +55,7 @@
                             <text class="fav-status status-{{item.statusKind}}">{{item.statusText}}</text>
                         </view>
                         <text class="fav-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · {{item.savedText}}</text>
+                        <text class="fav-cooked" wx:if="{{item.cookCount > 0}}">做过 {{item.cookCount}} 次</text>
                         <text class="fav-items" wx:if="{{item.mainItemsText}}">用料：{{item.mainItemsText}}</text>
                         <text class="fav-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
                         <view class="fav-tags" wx:if="{{item.tags.length > 0}}">
@@ -88,6 +89,7 @@
         <text class="detail-emoji">{{detail.emoji}}</text>
         <text class="sheet-title">{{detail.name}}</text>
         <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}} · {{detail.savedText}}</text>
+        <text class="cooked-note" wx:if="{{detail.cookCount > 0}}">这道菜全家已做过 {{detail.cookCount}} 次</text>
 
         <text class="field-label">用料</text>
         <text class="detail-need">{{detail.mainItemsText || '没有记录主料'}}<text wx:if="{{detail.seasoningsText}}">（调料：{{detail.seasoningsText}}）</text></text>

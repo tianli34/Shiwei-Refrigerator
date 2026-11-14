@@ -82,6 +82,29 @@
 .fav-meta { display: block; margin-top: 8rpx; font-size: 22rpx; color: #9C9284; }
 .fav-items { display: block; margin-top: 8rpx; font-size: 22rpx; color: #7E7466; line-height: 1.5; }
 
+/* 做菜次数：0 次时 wx:if 隐藏，>0 才亮；奶酪黄与「现在能做」的绿色状态区分 */
+.fav-cooked {
+    display: inline-block;
+    margin-top: 8rpx;
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    background: #FBF0D6;
+    color: #A1752A;
+    font-size: 20rpx;
+    font-weight: 700;
+}
+
+/* 详情弹层与炼金术页同名同类，保持两处观感一致 */
+.cooked-note {
+    display: block;
+    margin-top: 16rpx;
+    padding: 14rpx 20rpx;
+    border-radius: 16rpx;
+    background: #FFF6E6;
+    color: #A1752A;
+    font-size: 23rpx;
+}
+
 /* 用别的部位顶上（五花肉 代 猪肉）：能做，但得说清楚 */
 .fav-approx { display: block; margin-top: 6rpx; font-size: 21rpx; color: #5F8A54; line-height: 1.5; }
 

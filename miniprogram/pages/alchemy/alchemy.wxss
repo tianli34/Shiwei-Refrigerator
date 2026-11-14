@@ -126,6 +126,28 @@
     font-weight: 700;
 }
 
+/* 做菜次数：0 次时 wx:if 隐藏，>0 才亮；奶酪黄与「能做」的绿色徽章区分累计与状态 */
+.recipe-cooked {
+    display: inline-block;
+    margin-top: 8rpx;
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    background: #FBF0D6;
+    color: #A1752A;
+    font-size: 20rpx;
+    font-weight: 700;
+}
+
+.cooked-note {
+    display: block;
+    margin-top: 16rpx;
+    padding: 14rpx 20rpx;
+    border-radius: 16rpx;
+    background: #FFF6E6;
+    color: #A1752A;
+    font-size: 23rpx;
+}
+
 .recipe-need { display: block; margin-top: 8rpx; font-size: 23rpx; color: #A1752A; }
 .need-word { font-weight: 700; color: #C97A24; }
 

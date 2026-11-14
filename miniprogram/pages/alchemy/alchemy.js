@@ -35,13 +35,15 @@ Page(createAuthMixin({
 
     loadData: async function () {
         this.setData({ viewState: 'loading' });
-        const results = await Promise.all([stores.ingredients.list(), stores.recipes.list()]);
+        const results = await Promise.all([stores.ingredients.list(), stores.recipes.list(), stores.cookCountMap()]);
         if (results[0].error) {
             this.setData({ viewState: 'error' });
             util.toast(util.errorMessage(results[0].error, '食材加载失败'));
             return;
         }
         this.cloudRows = results[1].error ? [] : (results[1].data || []);
+        // 次数一次拉全，合成时本地合并；本轮还没有打卡入口，字典通常为空。
+        this.cookCounts = results[2] || {};
         const rows = foodNames.decorateList((results[0].data || []).filter(function (row) { return !row.consumed; }));
         rows.sort(function (a, b) {
             return util.diffDays(a.expiry_on) - util.diffDays(b.expiry_on);
@@ -118,10 +120,11 @@ Page(createAuthMixin({
 
     synthesize: function () {
         const result = recipes.match(this.data.selectedIds, this.cloudRows);
+        const counts = this.cookCounts || {};
         this.setData({
             hasResult: true,
-            ready: result.ready.slice(0, 8),
-            missingOne: result.missingOne.slice(0, 8),
+            ready: recipes.attachCookCounts(result.ready.slice(0, 8), counts),
+            missingOne: recipes.attachCookCounts(result.missingOne.slice(0, 8), counts),
         });
         if (!result.ready.length && !result.missingOne.length) {
             util.toast('这组搭配有点前卫，交给 AI 吧 ✨');
@@ -137,6 +140,7 @@ Page(createAuthMixin({
         const seasonings = recipe.seasonings || [];
         this.setData({
             detail: Object.assign({}, recipe, {
+                cookCount: Number(recipe.cookCount) || 0,
                 mainItemsText: foodNames.joinLabels(recipe.mainItems || []) +
                     (seasonings.length ? '（调料：' + foodNames.joinLabels(seasonings) + '）' : ''),
                 steps: (recipe.steps || []).length ? recipe.steps : ['把食材处理好，按熟悉的方式做熟，趁热吃。'],

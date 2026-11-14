@@ -191,6 +191,24 @@ function allRecipes(cloudRows) {
     return BUILTIN.concat(extra);
 }
 
+// 统一菜谱身份：合池里的 'b1'/'c12' 原样返回；收藏页和云端裸行的数字 id 补 'c' 前缀，
+// 与 allRecipes() 以及 menu_shares 快照里的键对齐。两条路径只在这里分叉。
+function recipeKey(item) {
+    const id = String((item && item.id) || '');
+    if (/^\d+$/.test(id)) return 'c' + id;
+    return id;
+}
+
+// 把次数贴到一批菜谱上：返回新对象，绝不改动 BUILTIN 常量；缺失/NaN/负数一律兜底为 0。
+// 计数是渲染前才装配的展示态，不进匹配池、不进点菜板快照。
+function attachCookCounts(list, countMap) {
+    const map = countMap || {};
+    return (list || []).map(function (item) {
+        const n = Number(map[recipeKey(item)]);
+        return Object.assign({}, item, { cookCount: Number.isFinite(n) && n > 0 ? n : 0 });
+    });
+}
+
 // 反向匹配：按用户勾选的食材，分出「立即可做」与「只差 1 样」。
 // ctx 决定食材名用谁的叫法展示；分享给外部好友时传 external，强制通用主名。
 function match(selectedNames, cloudRows, ctx) {
@@ -253,4 +271,6 @@ module.exports = {
     shelfDaysFor: shelfDaysFor,
     hasIngredient: hasIngredient,
     toFoodId: toFoodId,
+    recipeKey: recipeKey,
+    attachCookCounts: attachCookCounts,
 };
