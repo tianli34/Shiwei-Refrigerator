@@ -5,6 +5,7 @@ const util = require('../../utils/util');
 const dict = require('../../utils/food-dict');
 const foodNames = require('../../utils/food-names');
 const subscribe = require('../../utils/subscribe');
+const quantity = require('../../utils/quantity');
 
 const ZONE_LABEL = { cold: '冷藏', freeze: '冷冻', room: '常温' };
 const EMPTY_EMOJI = { cold: '🥛', freeze: '🧊', room: '🧺' };
@@ -28,19 +29,24 @@ function shelfCopy(days, source) {
     };
 }
 
-// 手动录入时数量只填数字，单位靠标签点选；拼成「2 盒」这样的描述文本，
-// 和 AI 拆解结果写进 quantity 字段的格式保持一致，列表展示也不用改。
+// 数量的四种写法是并列的「四选一」：精确 / 很多 / 少量 / 不记。
+// 表单只记录模式与数值，最终值统一由 utils/quantity.js 收口成一个字符串。
 const QTY_UNITS = ['无', '个', '盒', '袋', '斤', '瓶', '份'];
 
-function joinQuantity(qty, unit) {
-    const n = String(qty == null ? '' : qty).trim();
-    if (!n) return '';
-    const u = String(unit || '').trim();
-    return u && u !== '无' ? n + ' ' + u : n;
+function defaultForm() {
+    return { name: '', emoji: '🥬', zone: 'cold', qty: '', unit: '', qtyMode: 'exact', shelfDays: 3, note: '' };
 }
 
-function defaultForm() {
-    return { name: '', emoji: '🥬', zone: 'cold', qty: '', unit: '', shelfDays: 3, note: '' };
+// 每次改动数量，都把「这次记的是」预览与当前模式的说明一并算好，
+// 让用户随时确认自己选的是哪一档，而不是靠脑补。
+function qtyView(form) {
+    const text = quantity.build(form.qtyMode, form.qty, form.unit);
+    const emptyLabel = form.qtyMode === 'exact' ? '还没填数字' : '没记（可空）';
+    return {
+        qtyPreview: text || emptyLabel,
+        qtyPreviewKind: quantity.kindOf(text),
+        activeQtyMode: quantity.modeMeta(form.qtyMode),
+    };
 }
 
 Page(createAuthMixin({
@@ -67,7 +73,11 @@ Page(createAuthMixin({
             return Object.assign({}, food, { display: food.name });
         }),
         qtyUnits: QTY_UNITS,
+        qtyModes: quantity.MODES,
         form: defaultForm(),
+        qtyPreview: '还没填数字',
+        qtyPreviewKind: 'none',
+        activeQtyMode: quantity.MODES[0],
         namePicker: null,
         shelfSource: '',
         shelfTip: MANUAL_SHELF_TIP,
@@ -102,7 +112,10 @@ Page(createAuthMixin({
         const rows = (result.data || []).filter(function (row) { return !row.consumed; });
         // 历史行没有 food_id 时 decorate 会用名称兜底归一，不影响旧数据展示。
         const decorated = rows.map(function (row) {
-            return Object.assign(foodNames.decorate(row), { fresh: util.freshness(row) });
+            return Object.assign(foodNames.decorate(row), {
+                fresh: util.freshness(row),
+                qtyKind: quantity.kindOf(row.quantity),
+            });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;
         const expiring = (reminderOn ? decorated.filter(function (row) { return row.fresh.left <= 2; }) : []).sort(function (a, b) {
@@ -199,7 +212,7 @@ Page(createAuthMixin({
         this.setData(Object.assign({
             showAdd: true, parsedFoods: [], parseNote: '', addMode: 'tag',
             addedThisRound: [], addedExpanded: false,
-        }, shelfCopy(this.data.form.shelfDays, '')));
+        }, shelfCopy(this.data.form.shelfDays, ''), qtyView(this.data.form)));
         getApp().playDoorSound();
     },
 
@@ -224,17 +237,17 @@ Page(createAuthMixin({
         const resolved = dict.resolve(name);
         const info = dict.meta(resolved.id || name);
         const days = info.known ? info.shelfDays : 3;
-        this.setData(Object.assign({
-            form: {
-                name: name,
-                emoji: info.emoji,
-                zone: info.zone,
-                qty: this.data.form.qty,
-                unit: this.data.form.unit,
-                shelfDays: days,
-                note: '',
-            },
-        }, shelfCopy(days, foodNames.labelOf(name))));
+        const form = {
+            name: name,
+            emoji: info.emoji,
+            zone: info.zone,
+            qty: this.data.form.qty,
+            unit: this.data.form.unit,
+            qtyMode: this.data.form.qtyMode,
+            shelfDays: days,
+            note: '',
+        };
+        this.setData(Object.assign({ form: form }, qtyView(form), shelfCopy(days, foodNames.labelOf(name))));
     },
 
     onNameInput: function (event) {
@@ -251,10 +264,27 @@ Page(createAuthMixin({
         this.setData(patch);
     },
 
-    onQtyInput: function (event) { this.setData({ 'form.qty': event.detail.value }); },
+    // 数量相关的所有改动都走同一个出口：只按路径改字段，不覆盖用户刚输入的名字/天数，
+    // 同时把预览和模式说明一起刷新。
+    setQty: function (patch) {
+        const form = Object.assign({}, this.data.form, patch);
+        const data = qtyView(form);
+        Object.keys(patch).forEach(function (key) {
+            data['form.' + key] = patch[key];
+        });
+        this.setData(data);
+    },
+    onQtyModeTap: function (event) {
+        const mode = event.currentTarget.dataset.mode;
+        if (quantity.modeMeta(mode).key !== mode) return;
+        this.setQty({ qtyMode: mode });
+    },
+    onQtyInput: function (event) {
+        this.setQty({ qty: event.detail.value });
+    },
     onUnitTap: function (event) {
         const picked = event.currentTarget.dataset.unit;
-        this.setData({ 'form.unit': picked === '无' ? '' : picked });
+        this.setQty({ unit: picked === '无' ? '' : picked });
     },
     onDaysInput: function (event) {
         const value = event.detail.value;
@@ -268,6 +298,7 @@ Page(createAuthMixin({
             return Object.assign({}, item, {
                 zoneLabel: ZONE_LABEL[item.zone] || '冷藏',
                 display: foodNames.displayName(item.food_id) || item.name,
+                qtyKind: quantity.kindOf(item.quantity),
             });
         });
     },
@@ -298,7 +329,7 @@ Page(createAuthMixin({
         const days = clampShelfDays(form.shelfDays);
         const emoji = form.emoji || '🥣';
         const zone = form.zone;
-        const quantity = joinQuantity(form.qty, form.unit);
+        const quantityText = quantity.build(form.qtyMode, form.qty, form.unit);
         this.addingSingle = true;
         let result;
         try {
@@ -308,7 +339,7 @@ Page(createAuthMixin({
                 raw_name: name,
                 emoji: emoji,
                 zone: zone,
-                quantity: quantity,
+                quantity: quantityText,
                 shelf_days: days,
                 added_on: util.today(),
                 expiry_on: util.addDays(util.today(), days),
@@ -330,17 +361,19 @@ Page(createAuthMixin({
             name: display,
             display: display,
             emoji: emoji,
-            quantity: quantity,
+            quantity: quantityText,
+            qtyKind: quantity.kindOf(quantityText),
             zone: zone,
             zoneLabel: ZONE_LABEL[zone] || '冷藏',
             shelfDays: days,
         };
         // 不再关弹层：重置表单、回到标签模式，追加本次录入清单
+        const nextForm = defaultForm();
         this.setData(Object.assign({
-            form: defaultForm(),
+            form: nextForm,
             addMode: 'tag',
             addedThisRound: this.data.addedThisRound.concat([item]),
-        }, shelfCopy(3, '')));
+        }, qtyView(nextForm), shelfCopy(3, '')));
         util.toast(display + ' 已住进冰箱 🧊');
         await this.loadData();
     },
@@ -409,6 +442,34 @@ Page(createAuthMixin({
         const list = this.data.parsedFoods.slice();
         list.splice(index, 1);
         this.setData({ parsedFoods: list });
+    },
+
+    // 「说一句 / 拍小票」的结果里，数量也能直接点选成模糊档位。
+    onParsedQtyTap: function (event) {
+        const index = Number(event.currentTarget.dataset.index);
+        const list = this.data.parsedFoods.slice();
+        const current = list[index];
+        if (!current) return;
+        const that = this;
+        const items = quantity.FUZZY.concat(['不记']);
+        // 已有精确数值时给一个「保留」选项，避免误点把数值丢掉
+        if (current.quantity && !quantity.isFuzzy(current.quantity)) {
+            items.unshift('保留「' + current.quantity + '」');
+        }
+        wx.showActionSheet({
+            itemList: items,
+            success: function (res) {
+                const choice = items[res.tapIndex];
+                if (!choice || choice.indexOf('保留') === 0) return;
+                const value = quantity.isFuzzy(choice) ? choice : '';
+                list[index] = Object.assign({}, current, {
+                    quantity: value,
+                    qtyKind: quantity.kindOf(value),
+                });
+                that.setData({ parsedFoods: list });
+            },
+            fail: function () {},
+        });
     },
 
     addParsed: async function () {

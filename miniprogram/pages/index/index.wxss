@@ -233,6 +233,12 @@
     color: #A69C8B;
 }
 
+/* 模糊数量用奶酪黄，和灰色的「2 盒」这类精确描述一眼分开 */
+.food-qty-fuzzy {
+    color: #B9832B;
+    font-weight: 600;
+}
+
 .bar {
     height: 10rpx;
     margin-top: 18rpx;
@@ -419,6 +425,90 @@
     font-size: 22rpx;
 }
 
+/* 数量：一排等宽的四选一，四种写法平级，选中哪个就只展开哪个 */
+.qty-intro {
+    display: block;
+    margin: 0 0 16rpx;
+    font-size: 21rpx;
+    line-height: 1.5;
+    color: #8C8272;
+}
+
+.qty-modes { display: flex; justify-content: space-between; }
+
+.qty-mode {
+    box-sizing: border-box;
+    width: 23%;
+    padding: 16rpx 0;
+    border: 2rpx solid transparent;
+    border-radius: 16rpx;
+    background: #F4F1E6;
+    color: #6B6151;
+    font-size: 25rpx;
+    text-align: center;
+}
+
+.qty-mode-on {
+    background: #7FB069;
+    border-color: #7FB069;
+    color: #FFFFFF;
+}
+
+.qty-mode-many.qty-mode-on,
+.qty-mode-little.qty-mode-on {
+    background: #E8A33D;
+    border-color: #E8A33D;
+}
+
+.qty-mode-none.qty-mode-on {
+    background: #9C9284;
+    border-color: #9C9284;
+}
+
+.qty-pane {
+    margin-top: 16rpx;
+    padding: 18rpx 20rpx;
+    border-radius: 18rpx;
+    background: #F7F5EC;
+}
+
+.qty-pane-fuzzy { background: #FFF3D6; }
+.qty-pane-empty { background: #F4F1E6; }
+
+.qty-pane-title {
+    display: block;
+    font-size: 27rpx;
+    font-weight: 600;
+    color: #A9772A;
+}
+
+.qty-pane-desc {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: #8A7248;
+}
+
+.qty-pane-empty .qty-pane-desc { margin-top: 0; color: #8C8272; }
+
+.qty-preview {
+    box-sizing: border-box;
+    height: 84rpx;
+    line-height: 84rpx;
+    padding: 0 20rpx;
+    border-radius: 20rpx;
+    background: #F1F5E9;
+    font-size: 25rpx;
+    color: #5F7A48;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.qty-preview-fuzzy { background: #FFF3D6; color: #B9832B; }
+.qty-preview-none { background: #F4F1E6; color: #A69C8B; }
+
 .shelf-note {
     margin-top: 16rpx;
     padding: 16rpx 20rpx;
@@ -480,6 +570,8 @@
 .parsed-copy { flex: 1; margin-left: 16rpx; }
 .parsed-name { display: block; font-size: 27rpx; font-weight: 600; }
 .parsed-meta { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A69C8B; }
+.parsed-meta-fuzzy { color: #B9832B; }
+.parsed-qty-edit { margin-left: 8rpx; color: #7FB069; }
 .parsed-del { padding: 8rpx 18rpx; font-size: 36rpx; color: #C98D7C; }
 
 /* 本次连续录入的小结，紧跟在「放进冰箱」按钮下方 */
