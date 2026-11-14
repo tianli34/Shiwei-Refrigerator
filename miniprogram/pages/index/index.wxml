@@ -178,16 +178,27 @@
                 <input class="field-input" type="digit" confirm-type="done" maxlength="6" placeholder="比如 2" value="{{form.qty}}" bindinput="onQtyInput" />
                 <view class="unit-row">
                     <text class="unit-hint">单位</text>
-                    <view class="unit-grid">
-                        <view
-                            wx:for="{{qtyUnits}}"
-                            wx:key="*this"
-                            class="tag unit {{form.unit == item || (!form.unit && item == '无') ? 'tag-on' : ''}}"
-                            data-unit="{{item}}"
-                            bindtap="onUnitTap"
-                        >{{item}}</view>
-                    </view>
+                    <scroll-view class="unit-scroll" scroll-x show-scrollbar="{{false}}">
+                        <view class="unit-grid">
+                            <view
+                                wx:for="{{qtyUnits}}"
+                                wx:key="id"
+                                class="tag unit {{item.recent ? 'unit-recent' : ''}} {{item.custom ? 'unit-custom' : ''}} {{form.unit == item.value || (!form.unit && item.none) ? 'tag-on' : ''}}"
+                                data-unit="{{item.value}}"
+                                bindtap="onUnitTap"
+                                bindlongpress="onUnitLongPress"
+                            >{{item.label}}</view>
+                            <view class="tag unit unit-add" bindtap="onUnitAddTap">+</view>
+                        </view>
+                    </scroll-view>
                 </view>
+                <text class="unit-tip">左右滑动挑，常用的会排前面 · 点 + 自己加，长按可删</text>
+                <view class="unit-editor" wx:if="{{unitEditor}}">
+                    <input class="unit-editor-input" focus="{{unitEditor}}" maxlength="4" confirm-type="done" cursor-spacing="20" placeholder="比如 串、碗、mL" value="{{unitDraft}}" bindinput="onUnitDraftInput" bindconfirm="onUnitSave" />
+                    <view class="unit-editor-btn" bindtap="onUnitSave">加上</view>
+                    <view class="unit-editor-btn unit-editor-cancel" bindtap="onUnitCancel">取消</view>
+                </view>
+                <text class="unit-error" wx:if="{{unitError}}">{{unitError}}</text>
             </view>
             <view class="qty-pane qty-pane-fuzzy" wx:elif="{{form.qtyMode == 'many' || form.qtyMode == 'little'}}">
                 <text class="qty-pane-title">{{activeQtyMode.label}}</text>

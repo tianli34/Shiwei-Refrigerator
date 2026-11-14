@@ -6,6 +6,7 @@ const dict = require('../../utils/food-dict');
 const foodNames = require('../../utils/food-names');
 const subscribe = require('../../utils/subscribe');
 const quantity = require('../../utils/quantity');
+const units = require('../../utils/units');
 
 const ZONE_LABEL = { cold: '冷藏', freeze: '冷冻', room: '常温' };
 const EMPTY_EMOJI = { cold: '🥛', freeze: '🧊', room: '🧺' };
@@ -31,7 +32,7 @@ function shelfCopy(days, source) {
 
 // 数量的四种写法是并列的「四选一」：精确 / 很多 / 少量 / 不记。
 // 表单只记录模式与数值，最终值统一由 utils/quantity.js 收口成一个字符串。
-const QTY_UNITS = ['无', '个', '盒', '袋', '斤', '瓶', '份'];
+// 可点选的单位（含自建与最近使用排序）全部由 utils/units.js 提供，只影响录入与展示。
 
 function defaultForm() {
     return { name: '', emoji: '🥬', zone: 'cold', qty: '', unit: '', qtyMode: 'exact', shelfDays: 3, note: '' };
@@ -72,8 +73,11 @@ Page(createAuthMixin({
         commonFoods: util.COMMON_FOODS.map(function (food) {
             return Object.assign({}, food, { display: food.name });
         }),
-        qtyUnits: QTY_UNITS,
+        qtyUnits: units.chips([], []),
         qtyModes: quantity.MODES,
+        unitEditor: false,
+        unitDraft: '',
+        unitError: '',
         form: defaultForm(),
         qtyPreview: '还没填数字',
         qtyPreviewKind: 'none',
@@ -209,9 +213,12 @@ Page(createAuthMixin({
 
     // ---------- 极速录入 ----------
     openAddSheet: function () {
+        // 只在打开弹层时重排一次：点选单位不立刻挪动 chip，避免手一点列表就跳位。
         this.setData(Object.assign({
             showAdd: true, parsedFoods: [], parseNote: '', addMode: 'tag',
             addedThisRound: [], addedExpanded: false,
+            qtyUnits: units.read().chips,
+            unitEditor: false, unitDraft: '', unitError: '',
         }, shelfCopy(this.data.form.shelfDays, ''), qtyView(this.data.form)));
         getApp().playDoorSound();
     },
@@ -220,6 +227,7 @@ Page(createAuthMixin({
         this.setData({
             showAdd: false,
             addedThisRound: [], addedExpanded: false,
+            unitEditor: false, unitDraft: '', unitError: '',
         });
     },
 
@@ -284,7 +292,57 @@ Page(createAuthMixin({
     },
     onUnitTap: function (event) {
         const picked = event.currentTarget.dataset.unit;
-        this.setQty({ unit: picked === '无' ? '' : picked });
+        const value = picked === units.NONE_LABEL ? '' : picked;
+        units.pick(value);
+        this.setQty({ unit: value });
+    },
+
+    // 末尾的 + 号：就近展开一个小输入框，不套第二层弹层、不依赖高版本基础库。
+    onUnitAddTap: function () {
+        this.setData({ unitEditor: true, unitDraft: '', unitError: '' });
+    },
+    onUnitCancel: function () {
+        this.setData({ unitEditor: false, unitDraft: '', unitError: '' });
+    },
+    onUnitDraftInput: function (event) {
+        this.setData({ unitDraft: event.detail.value, unitError: '' });
+    },
+    onUnitSave: function () {
+        const result = units.add(this.data.unitDraft);
+        if (!result.ok) {
+            this.setData({ unitError: result.error });
+            return;
+        }
+        this.setData({
+            qtyUnits: result.chips,
+            unitEditor: false, unitDraft: '', unitError: '',
+        });
+        this.setQty({ unit: result.value });
+        util.toast('「' + result.value + '」加好啦');
+    },
+
+    // 只删自建单位；已经入库的食材是数量文本快照，不受影响。
+    onUnitLongPress: function (event) {
+        const value = event.currentTarget.dataset.unit;
+        if (!value || !units.isCustom(value)) return;
+        const that = this;
+        wx.showModal({
+            title: '删掉这个单位？',
+            content: '「' + value + '」会从可选列表里移除，已经记进冰箱的食材不受影响。',
+            confirmText: '删掉',
+            success: function (res) {
+                if (!res.confirm) return;
+                const result = units.remove(value);
+                if (!result.ok) return;
+                const wasPicked = that.data.form.unit === value;
+                that.setData({
+                    qtyUnits: result.chips,
+                    unitEditor: false, unitDraft: '', unitError: '',
+                });
+                if (wasPicked) that.setQty({ unit: '' });
+                util.toast('已删掉「' + value + '」');
+            },
+        });
     },
     onDaysInput: function (event) {
         const value = event.detail.value;
