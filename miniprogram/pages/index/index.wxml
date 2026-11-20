@@ -163,9 +163,9 @@
             </view>
             <text class="field-label">也能自己写</text>
             <input class="field-input" placeholder="食材名，比如 鲜牛奶" value="{{form.name}}" bindinput="onNameInput" />
-            <!-- 数量：四种写法平级四选一，选哪种就只出现哪种的内容 -->
+            <!-- 数量：三档平级三选一，选哪种就只出现哪种的内容；数量本身可空 -->
             <text class="field-label">数量</text>
-            <text class="qty-intro">数得清就填数字，数不清就点个大概，也能先不记 —— 选一种就好</text>
+            <text class="qty-intro">数得清就填数字，数不清就点个大概；不想记就空着 —— 选一种就好</text>
             <view class="qty-modes">
                 <view
                     wx:for="{{qtyModes}}"
@@ -205,9 +205,6 @@
             </view>
             <view class="qty-pane qty-pane-fuzzy" wx:elif="{{form.qtyMode == 'many' || form.qtyMode == 'little'}}">
                 <text class="qty-pane-title">{{activeQtyMode.label}}</text>
-                <text class="qty-pane-desc">{{activeQtyMode.desc}}</text>
-            </view>
-            <view class="qty-pane qty-pane-empty" wx:else>
                 <text class="qty-pane-desc">{{activeQtyMode.desc}}</text>
             </view>
 

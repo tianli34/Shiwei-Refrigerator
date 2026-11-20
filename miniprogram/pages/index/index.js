@@ -30,7 +30,8 @@ function shelfCopy(days, source) {
     };
 }
 
-// 数量的四种写法是并列的「四选一」：精确 / 很多 / 少量 / 不记。
+// 数量是并列的「三选一」：精确 / 很多 / 少量。空着就等于没记数量，
+// 不再单独给一个「不记」按钮 —— 那和「精确 + 不填数字」是同一个结果。
 // 表单只记录模式与数值，最终值统一由 utils/quantity.js 收口成一个字符串。
 // 可点选的单位（含自建与最近使用排序）全部由 utils/units.js 提供，只影响录入与展示。
 
@@ -40,11 +41,11 @@ function defaultForm() {
 
 // 每次改动数量，都把「这次记的是」预览与当前模式的说明一并算好，
 // 让用户随时确认自己选的是哪一档，而不是靠脑补。
+// 三档里只有精确可能产出空值，空 = 没记数量，预览照实说「还没填数字」。
 function qtyView(form) {
     const text = quantity.build(form.qtyMode, form.qty, form.unit);
-    const emptyLabel = form.qtyMode === 'exact' ? '还没填数字' : '没记（可空）';
     return {
-        qtyPreview: text || emptyLabel,
+        qtyPreview: text || '还没填数字',
         qtyPreviewKind: quantity.kindOf(text),
         activeQtyMode: quantity.modeMeta(form.qtyMode),
     };

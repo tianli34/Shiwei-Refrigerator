@@ -486,7 +486,7 @@
     color: #C7654B;
 }
 
-/* 数量：一排等宽的四选一，四种写法平级，选中哪个就只展开哪个 */
+/* 数量：一排等宽的三选一，三种写法平级，选中哪个就只展开哪个 */
 .qty-intro {
     display: block;
     margin: 0 0 16rpx;
@@ -499,7 +499,7 @@
 
 .qty-mode {
     box-sizing: border-box;
-    width: 23%;
+    width: 31%;
     padding: 16rpx 0;
     border: 2rpx solid transparent;
     border-radius: 16rpx;
@@ -521,11 +521,6 @@
     border-color: #E8A33D;
 }
 
-.qty-mode-none.qty-mode-on {
-    background: #9C9284;
-    border-color: #9C9284;
-}
-
 .qty-pane {
     margin-top: 16rpx;
     padding: 18rpx 20rpx;
@@ -534,7 +529,6 @@
 }
 
 .qty-pane-fuzzy { background: #FFF3D6; }
-.qty-pane-empty { background: #F4F1E6; }
 
 .qty-pane-title {
     display: block;
@@ -550,8 +544,6 @@
     line-height: 1.5;
     color: #8A7248;
 }
-
-.qty-pane-empty .qty-pane-desc { margin-top: 0; color: #8C8272; }
 
 .qty-preview {
     box-sizing: border-box;

@@ -35,12 +35,14 @@ function main() {
     assert.strictEqual(qty.build('unknown', '3', '斤'), '3 斤', '未知模式安全回退成精确');
     assert.strictEqual(qty.build('many', '2', '盒'), '很多', '选很多时忽略数值与单位');
     assert.strictEqual(qty.build('little', '2', '盒'), '少量', '选少量时忽略数值与单位');
-    assert.strictEqual(qty.build('none', '2', '盒'), '', '选不记时忽略数值与单位');
+    assert.strictEqual(qty.build('none', '2', '盒'), '', '空档兜底：改档回显空值仍然给空串');
     assert.strictEqual(qty.build('很多', '2', '盒'), '很多', '字面值也能直接回显');
     assert.strictEqual(qty.build('少量', '', ''), '少量', '字面值少量');
 
-    // 模式表就是 UI 的四选一，每一档都自带通俗解释
-    assert.deepStrictEqual(qty.MODES.map(function (m) { return m.key; }), ['exact', 'many', 'little', 'none'], '四选一顺序固定');
+    // 模式表就是 UI 的三选一，每一档都自带通俗解释；
+    // 「不记」不做成按钮：空值本身就是没记，多一个按钮等于同一个结果开两个入口
+    assert.deepStrictEqual(qty.MODES.map(function (m) { return m.key; }), ['exact', 'many', 'little'], '三档顺序固定');
+    assert.strictEqual(qty.MODES.some(function (m) { return m.key === 'none'; }), false, '不再有「不记」按钮');
     assert.strictEqual(qty.modeMeta('many').desc.indexOf('够做好几顿') >= 0, true, '「很多」要有通俗解释');
     assert.strictEqual(qty.modeMeta('little').desc.indexOf('只剩一点') >= 0, true, '「少量」要有通俗解释');
     assert.strictEqual(qty.modeOf('很多'), 'many', '历史模糊值可反推模式');
@@ -116,7 +118,7 @@ function main() {
     assert.strictEqual(box[0].name, '牛奶');
     assert.strictEqual(box[0].quantity, '一盒');
 
-    console.log('PASS: 数量四选一（精确/很多/少量/不记）、口语原样保留与 AI 拆解均正常');
+    console.log('PASS: 数量三选一（精确/很多/少量，空即不记）、口语原样保留与 AI 拆解均正常');
 }
 
 main();

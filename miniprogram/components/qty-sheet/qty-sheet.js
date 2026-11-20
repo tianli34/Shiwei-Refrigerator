@@ -14,8 +14,9 @@ Component({
     },
 
     data: {
-        // 「不记」在改档场景里没必要：直接关掉弹层就是不动它。
-        modes: quantity.MODES.filter(function (mode) { return mode.key !== 'none'; }),
+        // 改档只给三档：清空数量不是点开这一层想干的事，关掉弹层就是不动它。
+        // MODES 里本来就没有「不记」了，这里直接取用，不再额外过滤。
+        modes: quantity.MODES,
         mode: 'exact',
         qty: '',
         unit: '',
