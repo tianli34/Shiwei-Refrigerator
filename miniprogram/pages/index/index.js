@@ -107,7 +107,10 @@ Page(createAuthMixin({
 
     loadData: async function () {
         this.setData({ viewState: 'loading' });
-        const result = await stores.ingredients.list();
+        // 消耗次数是纯展示态：并行拉，读失败退化成全 0，绝不阻塞冰箱主流程。
+        const results = await Promise.all([stores.ingredients.list(), stores.consumedCountMap()]);
+        const result = results[0];
+        const counts = results[1] || {};
         if (result.error) {
             this.setData({ viewState: 'error' });
             util.toast(util.errorMessage(result.error, '食材加载失败'));
@@ -116,9 +119,15 @@ Page(createAuthMixin({
         const rows = (result.data || []).filter(function (row) { return !row.consumed; });
         // 历史行没有 food_id 时 decorate 会用名称兜底归一，不影响旧数据展示。
         const decorated = rows.map(function (row) {
-            return Object.assign(foodNames.decorate(row), {
+            const item = foodNames.decorate(row);
+            // 计数键必须用 decorate 归一后的 food_id：食物名叫法会变，只有身份稳定。
+            const n = Number(counts[item.food_id]);
+            const count = Number.isFinite(n) && n > 0 ? n : 0;
+            return Object.assign(item, {
                 fresh: util.freshness(row),
                 qtyKind: quantity.kindOf(row.quantity),
+                consumedCount: count,
+                consumedLabel: count > 0 ? ('已吃掉 ' + count + ' 次') : '还没吃掉过',
             });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;

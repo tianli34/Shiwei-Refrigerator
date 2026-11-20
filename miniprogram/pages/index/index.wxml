@@ -92,6 +92,7 @@
                     </view>
                     <text class="food-name" data-id="{{item.food_id}}" catchtap="onFoodNameTap">{{item.display}} <text class="food-edit">✎</text></text>
                     <text class="food-qty {{item.qtyKind == 'fuzzy' ? 'food-qty-fuzzy' : ''}}">{{item.quantity || '数量没记'}}</text>
+                    <text class="food-consumed {{item.consumedCount > 0 ? 'food-consumed-on' : ''}}">{{item.consumedLabel}}</text>
                     <view class="bar"><view class="bar-fill bar-{{item.fresh.level}}" style="width:{{item.fresh.percent}}%"></view></view>
                     <view class="food-actions" wx:if="{{expandedItem == item.id}}">
                         <text class="food-act" data-id="{{item.id}}" catchtap="onConsume">✅ 吃掉了</text>

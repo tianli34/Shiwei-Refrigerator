@@ -14,6 +14,8 @@ const PREF_FIELDS = COMMON.concat(['food_id', 'preferred_name', 'pref_scope', 'p
 const SETTING_FIELDS = COMMON.concat(['region', 'household_unified', 'updated_at']);
 // 做菜次数：写入白名单。owner_id 由服务端 DEFAULT + RLS 决定，绝不进白名单。
 const COOK_COUNT_FIELDS = COMMON.concat(['recipe_key', 'cook_count']);
+// 食材消耗次数：写入白名单。口径同上，键是归一后的 food_id，不是展示名。
+const CONSUMED_COUNT_FIELDS = COMMON.concat(['food_id', 'consumed_count']);
 
 const ingredients = createTableAccess(cloud, {
     table: 'ingredients',
@@ -43,6 +45,15 @@ const recipeCookCounts = createTableAccess(cloud, {
     table: 'recipe_cook_counts',
     columns: ['id', 'owner_id', 'owner_name', 'household_key', 'recipe_key', 'cook_count', 'created_at'],
     toRow: function (row) { return pick(row, COOK_COUNT_FIELDS); },
+    orderBy: { column: 'created_at', ascending: false },
+});
+
+// 食材消耗次数：一行 = 一个家庭里的一样食材，按归一后的 food_id 累计（五花肉与猪肉分开计）。
+// 结构与 recipe_cook_counts 同构；本轮只读不写，UNIQUE(household_key, food_id) 为后续原子自增铺路。
+const ingredientConsumedCounts = createTableAccess(cloud, {
+    table: 'ingredient_consumed_counts',
+    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'food_id', 'consumed_count', 'created_at'],
+    toRow: function (row) { return pick(row, CONSUMED_COUNT_FIELDS); },
     orderBy: { column: 'created_at', ascending: false },
 });
 
@@ -116,6 +127,23 @@ async function cookCountMap() {
     return map;
 }
 
+// 食材消耗次数一次拉全，键是 food_id：食物名会随叫法偏好变，只有 food_id 是稳定身份。
+// 读失败同样返回空字典让卡片照常渲染，warn 用于区分「表没建好」与「确实没消耗过」。
+async function consumedCountMap() {
+    const result = await ingredientConsumedCounts.list();
+    const map = {};
+    if (!result || result.error) {
+        if (result && result.error) console.warn('[consumedCountMap] 食材消耗次数读取失败：', result.error);
+        return map;
+    }
+    (result.data || []).forEach(function (row) {
+        if (!row || !row.food_id) return;
+        const n = Number(row.consumed_count);
+        map[row.food_id] = Number.isFinite(n) && n > 0 ? n : 0;
+    });
+    return map;
+}
+
 async function findHouseholdByCode(code) {
     const result = await cloud.database.from('households').select('id, name, invite_code, owner_id').eq('invite_code', String(code || '').trim().toUpperCase()).limit(1);
     if (result.error) return { data: null, error: result.error };
@@ -149,10 +177,12 @@ module.exports = {
     foodNamePrefs: foodNamePrefs,
     foodNameSettings: foodNameSettings,
     recipeCookCounts: recipeCookCounts,
+    ingredientConsumedCounts: ingredientConsumedCounts,
     scope: scope,
     householdScope: householdScope,
     ownerName: ownerName,
     cookCountMap: cookCountMap,
+    consumedCountMap: consumedCountMap,
     findHouseholdByCode: findHouseholdByCode,
     findShareByCode: findShareByCode,
     listVotes: listVotes,

@@ -239,6 +239,19 @@
     font-weight: 600;
 }
 
+/* 食材已消耗次数：常显，但 0 次用浅灰弱化，避免刚上线时满屏「0」像坏掉了 */
+.food-consumed {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 20rpx;
+    color: #B3AA9B;
+}
+
+.food-consumed-on {
+    color: #A1752A;
+    font-weight: 600;
+}
+
 .bar {
     height: 10rpx;
     margin-top: 18rpx;

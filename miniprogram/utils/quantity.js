@@ -1,8 +1,11 @@
 // 食材数量的统一语义。数据库沿用 ingredients.quantity / shopping_items.quantity
 // 这一个描述性字符串，不新增列、不需要迁移历史数据：
-//   ''               → 没记数量
-//   '2 盒' / '两斤'  → 精确：数值 + 可选单位
-//   '很多' / '少量'  → 模糊：录入时直接点选，或由 AI / 本地兜底从口语归一
+//   ''                 → 没记数量
+//   '2 盒' / '两斤'    → 精确：数值 + 可选单位
+//   '很多' / '少量'    → 模糊：录入时点选档位
+//   '一大堆' / '少许'  → 模糊：一句话录入 / 小票识别原样保留的口语说法
+// 口语不归一：「一大堆」就存「一大堆」。下面的词表只用来判断「它属于哪一档」，
+// 好让列表照常走模糊色、点数量时能改档；它绝不改写存储值。
 // 数量只用于展示与录入；菜谱匹配只看食材身份，不比较数量档位。
 
 const FUZZY = ['很多', '少量'];
@@ -18,6 +21,7 @@ const MODES = [
 
 // 口语说法 → 两个标准档位。长词优先，避免「一点」抢走「一点点」。
 // 故意不收「不多」：它会命中「差不多」这类无关词。
+// 注意：这张表只用于「认出它属于哪一档」，不用于把输入改写成标准值。
 const ALIASES = [
     ['很多', ['许许多多', '一大堆', '许多', '好多', '不少', '超多', '大量', '挺多', '蛮多', '一堆', '很多']],
     ['少量', ['一点点', '一丢丢', '一丁点', '些许', '少量', '少许', '一点']],
@@ -33,17 +37,22 @@ ALIASES.forEach(function (entry) {
 });
 ALIAS_WORDS.sort(function (a, b) { return b.length - a.length; });
 
+// 是否属于模糊档：既认标准档位「很多/少量」，也认「一大堆/少许」这类口语。
+// 只做判定，不改写 —— 库里存的仍然是模型或用户原本给的那个词。
 function isFuzzy(text) {
-    return FUZZY.indexOf(String(text == null ? '' : text).trim()) >= 0;
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return false;
+    return FUZZY.indexOf(raw) >= 0 || !!canonical(raw);
 }
 
 function kindOf(text) {
     const raw = String(text == null ? '' : text).trim();
-    if (isFuzzy(raw)) return 'fuzzy';
-    return raw ? 'exact' : 'none';
+    if (!raw) return 'none';
+    return isFuzzy(raw) ? 'fuzzy' : 'exact';
 }
 
-// 把「许多」「一点点」这类口语收敛成标准档位；带数值的描述不当模糊量。
+// 认出「这句话在说哪一档」。只用于判定，不用于改写存储值：
+// 「一大堆」会被认成 many，但落库的仍然是「一大堆」。
 function canonical(text) {
     const raw = String(text == null ? '' : text).trim().slice(0, 12);
     if (!raw) return '';
@@ -51,7 +60,8 @@ function canonical(text) {
     return ALIAS_MAP[cleaned] || '';
 }
 
-// 在一句话里找模糊量，返回 { value, word }：word 供拆解时把口语词从食材名里剔掉。
+// 在一句话里找口语量词，返回 { value, word }：value 是所属档位（只供判定），
+// word 是原词——拆解时把它从食材名里剔掉，并原样写进 quantity。
 // 取最靠前的一次出现，同位时取更长的词（「一点点」优先于「一点」）。
 function scan(text) {
     const raw = String(text == null ? '' : text);
@@ -86,11 +96,13 @@ function build(mode, qty, unit) {
 }
 
 // 从已存的描述串反推模式，用于历史行回显与识别结果的初始状态。
+// 口语值（「一大堆」）回显成对应档位，但不会把库里的原话改成「很多」。
 function modeOf(text) {
     const raw = String(text == null ? '' : text).trim();
-    if (raw === '很多') return 'many';
-    if (raw === '少量') return 'little';
     if (!raw) return 'none';
+    const canon = canonical(raw);
+    if (canon === '很多') return 'many';
+    if (canon === '少量') return 'little';
     return 'exact';
 }
 

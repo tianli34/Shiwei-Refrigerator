@@ -4,8 +4,8 @@ const dict = require('./food-dict');
 const quantity = require('./quantity');
 
 const SYSTEM_CHEF = '你是「拾味冰箱」的创意厨师。用户会给你冰箱里剩下的食材，你要给出一道「黑暗但合理」、真的能下咽的创意菜。只输出一个 JSON 对象，不要 markdown 代码块，字段：name(菜名), emoji(一个表情), minutes(整数分钟), difficulty(简单/中等/挑战), tags(字符串数组), extra(还需要额外买的食材名数组，一律用全国通用叫法，没有就空数组), steps(字符串数组，3-5 步，每步不超过 40 字), punchline(一句俏皮点评，不超过 30 字)。不要输出 JSON 以外的任何内容。';
-const SYSTEM_PARSER = '你是「拾味冰箱」的食材录入助手。把用户描述的一句话拆成食材清单，只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述：数得清就写「两斤」「一盒」这类数值+单位；用户说「很多/许多/一大堆」写「很多」，说「少量/一点/少许」写「少量」；没提数量就空串), shelf_days(整数保质期天数), zone(只能是 cold/freeze/room)。从「保质期N天」「放N天」等描述里提取天数。不要输出 JSON 以外的任何内容。';
-const SYSTEM_RECEIPT = '你是「拾味冰箱」的小票识别助手。读取超市小票照片，挑出可食用的生鲜和食品（忽略日用品、购物袋、金额和条码），只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述：看得清就写「2 盒」这类数值+单位；看不清但明显很多写「很多」、明显只有一点写「少量」，否则空串), shelf_days(整数，按常识估计), zone(只能是 cold/freeze/room)。看不清就输出空数组 []。不要输出 JSON 以外的任何内容。';
+const SYSTEM_PARSER = '你是「拾味冰箱」的食材录入助手。把用户描述的一句话拆成食材清单，只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述：一律照用户原话写，数得清就写「两斤」「一盒」这类数值+单位，用户说「许多」「一大堆」「一点点」「少许」就原样保留这个词，不要替换成别的说法；没提数量就空串), shelf_days(整数保质期天数), zone(只能是 cold/freeze/room)。从「保质期N天」「放N天」等描述里提取天数。不要输出 JSON 以外的任何内容。';
+const SYSTEM_RECEIPT = '你是「拾味冰箱」的小票识别助手。读取超市小票照片，挑出可食用的生鲜和食品（忽略日用品、购物袋、金额和条码），只输出 JSON 数组，不要 markdown 代码块。每项字段：name(食材名), quantity(数量描述：照小票上印的数量写法写，如「2 盒」「500 克」；小票上没印数量就空串), shelf_days(整数，按常识估计), zone(只能是 cold/freeze/room)。看不清就输出空数组 []。不要输出 JSON 以外的任何内容。';
 
 async function pickModel(preferImage) {
     let models;
@@ -92,10 +92,10 @@ async function streamWithImage(base64, mime, prompt) {
     return text;
 }
 
-// 数量统一收口：模糊说法归一到「很多 / 少量」，精确描述原样保留。
-function cleanQuantity(value) {
-    const raw = String(value == null ? '' : value).trim().slice(0, 12);
-    return quantity.canonical(raw) || raw;
+// 数量原样收口：一句话录入 / 小票识别都不再把「一大堆」折成「很多」。
+// 只做空白与长度处理，避免模型塞进一整句话把列表撑坏。
+function keepQuantity(value) {
+    return String(value == null ? '' : value).trim().slice(0, 12);
 }
 
 function normalizeFoods(parsed) {
@@ -121,7 +121,7 @@ function normalizeFoods(parsed) {
             ambiguous: resolved.status === 'ambiguous' ? resolved.candidates : [],
             emoji: info.emoji,
             zone: zone,
-            quantity: cleanQuantity(item.quantity),
+            quantity: keepQuantity(item.quantity),
             shelf_days: days,
         };
     });
@@ -138,7 +138,8 @@ function fallbackParse(text) {
         const clean = chunk.replace(/^买[了]?/, '').replace(/(保质期|放|能放|可放)\s*\d+\s*天/g, '').trim();
         if (!clean) continue;
         const exact = (clean.match(/[两一二三四五六七八九十\d]+(斤|个|盒|袋|根|只|把|瓶)/) || [''])[0];
-        // 没有数值时才找模糊量；「一大堆土豆」不能同时算成「一堆 + 精确」。
+        // 没有数值时才找口语量词；「一大堆土豆」不能同时算成「一堆 + 精确」。
+        // 找到后只把它从食材名里剪掉，原词照样写进 quantity，不折成「很多/少量」。
         const fuzzy = exact ? { value: '', word: '' } : quantity.scan(clean);
         let stripped = clean.replace(/[两一二三四五六七八九十\d]+(斤|个|盒|袋|根|只|把|瓶)/g, '');
         if (fuzzy.word) stripped = stripped.split(fuzzy.word).join('');
@@ -154,7 +155,7 @@ function fallbackParse(text) {
             ambiguous: resolved.status === 'ambiguous' ? resolved.candidates : [],
             emoji: info.emoji,
             zone: info.known ? info.zone : 'cold',
-            quantity: exact || fuzzy.value,
+            quantity: exact || fuzzy.word,
             shelf_days: days || (info.known ? info.shelfDays : 3),
         });
     }
