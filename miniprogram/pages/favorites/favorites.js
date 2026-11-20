@@ -177,20 +177,8 @@ Page(createAuthMixin({
         util.toast('已取消收藏');
     },
 
-    // 把收藏里的主料带去炼金术，用稳定身份跨页传值，这些食材重新参与一次合成。
+    // 推荐页进页就按冰箱现有食材重算，这里只需要把人带过去。
     onCookAgain: function () {
-        const detail = this.data.detail;
-        if (!detail) return;
-        const names = (detail.matchedNames || []).slice(0, 4);
-        if (!names.length) {
-            util.toast('冰箱里还没有这道菜的食材，先把用料补上吧');
-            return;
-        }
-        wx.setStorageSync('alchemy_preselect', {
-            ids: names.map(recipeLib.toFoodId).filter(Boolean),
-            names: [],
-            from: 'favorites',
-        });
         wx.reLaunch({ url: '/pages/alchemy/alchemy' });
     },
 
@@ -229,6 +217,6 @@ Page(createAuthMixin({
 
     onRetryData: function () { this.restore(); },
 
-    goAlchemy: function () { wx.reLaunch({ url: '/pages/alchemy/alchemy' }); },
+    goRecommend: function () { wx.reLaunch({ url: '/pages/alchemy/alchemy' }); },
     goFridge: function () { wx.reLaunch({ url: '/pages/index/index' }); },
 }));

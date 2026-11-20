@@ -76,8 +76,8 @@
             <view class="empty-state" wx:else>
                 <text class="empty-emoji">✨</text>
                 <text class="empty-title">还没收藏过菜</text>
-                <text class="empty-desc">在炼金术里让 AI 编一道，点「收藏这道菜」就会存到这里，下次还能直接翻出来做。</text>
-                <view class="btn-primary" style="margin-top:28rpx" bindtap="goAlchemy">去炼金术编一道</view>
+                <text class="empty-desc">以前用 AI 编的菜、点「收藏这道菜」存下来的都会在这里，随时翻出来做。</text>
+                <view class="btn-primary" style="margin-top:28rpx" bindtap="goRecommend">去看看今日推荐</view>
             </view>
         </block>
     </block>
@@ -105,7 +105,7 @@
         <text class="detail-tip" wx:if="{{detail.missingText}}">冰箱里还差：{{detail.missingText}}</text>
 
         <view class="btn-yellow" style="margin-top:28rpx" wx:if="{{detail.missing.length > 0}}" bindtap="onAddMissing">🛒 缺的 {{detail.missing.length}} 样加入买菜篮</view>
-        <view class="btn-primary" style="margin-top:20rpx" bindtap="onCookAgain">✨ 用现有食材再合成一次</view>
+        <view class="btn-primary" style="margin-top:20rpx" bindtap="onCookAgain">🍽️ 看今日推荐怎么做</view>
         <view class="btn-ghost" style="margin-top:16rpx" bindtap="onRemoveTap">取消收藏</view>
     </view>
 

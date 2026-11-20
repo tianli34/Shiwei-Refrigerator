@@ -98,11 +98,14 @@ function ownerName() {
     return (app && app.userName) || null;
 }
 
+function scopeKey() {
+    const app = typeof getApp === 'function' ? getApp() : null;
+    return (app && app.householdKey) || '';
+}
+
 // 写入时统一附带当前共享冰箱作用域与昵称快照；owner_id 由服务端 DEFAULT + RLS 决定，绝不从前端传。
 function scope(payload) {
-    const app = typeof getApp === 'function' ? getApp() : null;
-    const key = app && app.householdKey ? app.householdKey : '';
-    return Object.assign({}, payload, { household_key: key, owner_name: ownerName() });
+    return Object.assign({}, payload, { household_key: scopeKey(), owner_name: ownerName() });
 }
 
 function householdScope(payload) {
@@ -144,6 +147,61 @@ async function consumedCountMap() {
     return map;
 }
 
+// 计数表统一的自增 / 自减：一行 = 一个作用域（共享冰箱，或本人的独立冰箱）里的一道菜 / 一样食材。
+// 没有计数行就先建一行；建的时候撞上唯一键（并发下别的成员刚建过），就重读一次改成加减。
+// 前端只能写绝对值，所以「先读后写」：同一家庭的极端并发可能少记一次，
+// 但绝不会写成负数 —— 这里 clamp 一次，表上的 CHECK(>=0) 再兜一层。
+function applyCount(table, countField, row, step) {
+    const current = Number(row[countField]);
+    const next = Math.max(0, (Number.isFinite(current) ? current : 0) + step);
+    const patch = {};
+    patch[countField] = next;
+    return table.update(row.id, patch).then(function (result) {
+        return { data: next, error: result.error };
+    });
+}
+
+async function bumpCount(table, keyField, countField, key, delta) {
+    const id = String(key == null ? '' : key).trim();
+    if (!id) return { data: null, error: { message: '缺少计数键' } };
+    const step = Number(delta) < 0 ? -1 : 1;
+
+    const find = async function () {
+        const list = await table.list();
+        if (list.error) return { row: null, error: list.error };
+        const rows = safeArray(list.data).filter(function (row) { return row && row[keyField] === id; });
+        if (!rows.length) return { row: null, error: null };
+        const key0 = scopeKey();
+        const mine = rows.filter(function (row) { return (row.household_key || '') === key0; })[0];
+        return { row: mine || rows[0], error: null };
+    };
+
+    const first = await find();
+    if (first.error) return { data: null, error: first.error };
+    if (first.row) return applyCount(table, countField, first.row, step);
+    if (step < 0) return { data: 0, error: null };
+
+    const payload = scope({});
+    payload[keyField] = id;
+    payload[countField] = 1;
+    const created = await table.create(payload);
+    if (!created.error) return { data: 1, error: null };
+
+    const second = await find();
+    if (second.error || !second.row) return { data: null, error: created.error };
+    return applyCount(table, countField, second.row, step);
+}
+
+// 一道菜被做过一次：recipe_key 统一标识内置 'b1' 与云端 'c12'。
+function bumpCookCount(recipeKey, delta) {
+    return bumpCount(recipeCookCounts, 'recipe_key', 'cook_count', recipeKey, delta);
+}
+
+// 一样食材被消耗一次：键是归一后的 food_id，五花肉与猪肉各记各的。
+function bumpConsumedCount(foodId, delta) {
+    return bumpCount(ingredientConsumedCounts, 'food_id', 'consumed_count', foodId, delta);
+}
+
 async function findHouseholdByCode(code) {
     const result = await cloud.database.from('households').select('id, name, invite_code, owner_id').eq('invite_code', String(code || '').trim().toUpperCase()).limit(1);
     if (result.error) return { data: null, error: result.error };
@@ -183,6 +241,8 @@ module.exports = {
     ownerName: ownerName,
     cookCountMap: cookCountMap,
     consumedCountMap: consumedCountMap,
+    bumpCookCount: bumpCookCount,
+    bumpConsumedCount: bumpConsumedCount,
     findHouseholdByCode: findHouseholdByCode,
     findShareByCode: findShareByCode,
     listVotes: listVotes,

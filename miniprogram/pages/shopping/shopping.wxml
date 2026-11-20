@@ -46,8 +46,8 @@
             <view class="card empty-state" wx:if="{{pendingItems.length === 0 && viewState === 'ready'}}">
                 <text class="empty-emoji">🌿</text>
                 <text class="empty-title">买菜篮空空的</text>
-                <text class="empty-desc">在炼金术里遇到「只差一样」的菜，点一下就能加进来。</text>
-                <view class="btn-ghost" style="margin-top:24rpx" bindtap="goAlchemy">去找菜谱</view>
+                <text class="empty-desc">在今日推荐菜里遇到「只差一样」的菜，点一下就能加进来。</text>
+                <view class="btn-ghost" style="margin-top:24rpx" bindtap="goRecommend">去找菜谱</view>
             </view>
 
             <view class="item" wx:for="{{pendingItems}}" wx:key="id">

@@ -31,10 +31,21 @@ const accessStub = {
             config: config,
             list: async function () {
                 if (listError) return { data: [], error: listError };
-                return { data: rowsByTable[config.table] || [], error: null };
+                return { data: (rowsByTable[config.table] || []).slice(), error: null };
             },
-            create: async function () { return { data: null, error: null }; },
-            update: async function () { return { data: null, error: null }; },
+            create: async function (row) {
+                const list = rowsByTable[config.table] = rowsByTable[config.table] || [];
+                const saved = Object.assign({ id: 'new-' + list.length }, row);
+                list.push(saved);
+                return { data: saved, error: null };
+            },
+            update: async function (id, patch) {
+                const list = rowsByTable[config.table] || [];
+                const hit = list.filter(function (row) { return String(row.id) === String(id); })[0];
+                if (!hit) return { data: null, error: { code: 'NOT_FOUND_OR_FORBIDDEN' } };
+                Object.assign(hit, patch);
+                return { data: hit, error: null };
+            },
             remove: async function () { return { data: null, error: null }; },
         };
     },
@@ -182,22 +193,58 @@ async function testCardBadge() {
     assert.strictEqual(zoneItems[0].consumedLabel, '已吃掉 5 次');
     assert.strictEqual(zoneItems[1].consumedLabel, '已吃掉 2 次', '没有 food_id 的老行要按名字归一后仍能计数');
     assert.strictEqual(zoneItems[2].consumedCount, 0);
-    assert.strictEqual(zoneItems[2].consumedLabel, '还没吃掉过', '0 次也要常显，但不能写成「已吃掉 0 次」');
+    assert.strictEqual(zoneItems[2].consumedLabel, '', '0 次不占版面：模板用 wx:if 直接不渲染');
     assert.strictEqual(page.data.viewState, 'ready');
 
     // 徽章模板与样式是这条链路的落点，删掉等于功能消失，锁死关键字。
     const wxml = fs.readFileSync(path.join(root, 'pages', 'index', 'index.wxml'), 'utf8');
     assert.ok(wxml.indexOf('food-consumed') >= 0, 'index.wxml 必须渲染消耗徽章');
     assert.ok(wxml.indexOf('item.consumedLabel') >= 0, '徽章文案由页面装配，不在模板里拼数字');
+    assert.ok(
+        wxml.split('\n').some(function (line) {
+            return line.indexOf('food-consumed') >= 0 && line.indexOf('consumedCount > 0') >= 0;
+        }),
+        '0 次必须整枚徽章不渲染'
+    );
     const wxss = fs.readFileSync(path.join(root, 'pages', 'index', 'index.wxss'), 'utf8');
-    assert.ok(wxss.indexOf('.food-consumed-on') >= 0, '次数大于 0 要有可区分的样式');
+    assert.ok(wxss.indexOf('.food-consumed') >= 0, '次数徽章要有自己的样式');
+}
+
+// ---- 计数自增 / 自减：没有计数行就先建一行，减到 0 为止不写负数 ----
+async function testBumpCounts() {
+    rowsByTable.recipe_cook_counts = [
+        { id: 'r1', household_key: '', recipe_key: 'b2', cook_count: 2 },
+    ];
+    const up = await stores.bumpCookCount('b2', 1);
+    assert.strictEqual(up.data, 3, '已有行按绝对值 +1');
+    assert.strictEqual(rowsByTable.recipe_cook_counts[0].cook_count, 3);
+    const down = await stores.bumpCookCount('b2', -1);
+    assert.strictEqual(down.data, 2, '撤销就是 -1');
+
+    const created = await stores.bumpCookCount('b9', 1);
+    assert.strictEqual(created.data, 1, '第一次做就建一行，从 1 开始');
+    assert.strictEqual(rowsByTable.recipe_cook_counts.filter(function (row) { return row.recipe_key === 'b9'; }).length, 1, '同一道菜只留一行');
+
+    const floor = await stores.bumpCookCount('b9', -5);
+    assert.strictEqual(floor.data, 0, '减到底也只到 0，不能出现负数');
+    assert.strictEqual(rowsByTable.recipe_cook_counts.filter(function (row) { return row.recipe_key === 'b9'; })[0].cook_count, 0);
+
+    const missing = await stores.bumpCookCount('', 1);
+    assert.ok(missing.error, '没有计数键直接报错，不发请求');
+
+    rowsByTable.ingredient_consumed_counts = [];
+    const one = await stores.bumpConsumedCount('pork', 1);
+    assert.strictEqual(one.data, 1, '食材消耗次数同样支持首建');
+    assert.strictEqual(rowsByTable.ingredient_consumed_counts[0].food_id, 'pork');
+    assert.strictEqual(rowsByTable.ingredient_consumed_counts[0].household_key, '', '写入带上当前作用域');
 }
 
 (async function run() {
     testTableConfig();
     await testCountMap();
+    await testBumpCounts();
     await testCardBadge();
-    console.log('PASS 食材已消耗次数：表配置 / 白名单 / 字典兜底 / 卡片装配');
+    console.log('PASS 食材已消耗次数：表配置 / 白名单 / 字典兜底 / 卡片装配 / 计数增减');
 })().catch(function (error) {
     console.error('FAIL', error && error.message);
     process.exit(1);

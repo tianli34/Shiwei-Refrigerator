@@ -94,7 +94,7 @@
     font-weight: 700;
 }
 
-/* 详情弹层与炼金术页同名同类，保持两处观感一致 */
+/* 详情弹层与今日推荐菜页同名同类，保持两处观感一致 */
 .cooked-note {
     display: block;
     margin-top: 16rpx;

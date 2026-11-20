@@ -1,13 +1,13 @@
 <view class="page-wrap">
 
     <view wx:if="{{authState === 'checking'}}" class="loading-box">
-        <text class="loading-dot">✨</text><text>正在准备炼金台…</text>
+        <text class="loading-dot">🍽️</text><text>正在翻冰箱…</text>
     </view>
 
     <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
         <view class="auth-head">
-            <text class="auth-logo">✨</text>
-            <text class="auth-title">食材炼金术</text>
+            <text class="auth-logo">🍽️</text>
+            <text class="auth-title">今日推荐菜</text>
             <text class="auth-slogan">登录后才看得见你冰箱里的食材哦</text>
         </view>
         <login-panel bind:signedin="onSignedIn" />
@@ -16,10 +16,10 @@
 
     <block wx:else>
         <view class="hero-card">
-            <text class="hero-emoji">⚗️</text>
+            <text class="hero-emoji">🍽️</text>
             <view class="hero-copy">
-                <text class="hero-title">食材炼金术</text>
-                <text class="hero-sub">勾 2~4 样现有食材，合成今晚的菜</text>
+                <text class="hero-title">今日推荐菜</text>
+                <text class="hero-sub">冰箱里有什么就先吃什么，越急的排越前</text>
             </view>
         </view>
 
@@ -29,110 +29,130 @@
             <view class="btn-ghost" style="margin-top:24rpx" bindtap="onRetryData">重新加载</view>
         </view>
 
-        <block wx:else>
-            <view class="card">
-                <view class="row-between">
-                    <text class="section-title">① 挑食材</text>
-                    <text class="pick-count">{{selectedCount}} / 4</text>
-                </view>
-                <text class="section-sub">{{preselectHint || '点一下选中，再点一下取消'}}</text>
+        <block wx:elif="{{viewState === 'loading'}}">
+            <view class="loading-box"><text class="loading-dot">🥬</text><text>正在按保质期排队…</text></view>
+        </block>
 
-                <view class="pick-grid" wx:if="{{foodOptions.length > 0}}">
-                    <view
-                        wx:for="{{foodOptions}}"
-                        wx:key="id"
-                        class="pick {{item.selected ? 'pick-on' : ''}}"
-                        data-index="{{index}}"
-                        bindtap="onFoodTap"
-                    >
-                        <text class="pick-emoji">{{item.emoji}}</text>
-                        <text class="pick-name">{{item.display}}</text>
-                        <text class="pick-check" wx:if="{{item.selected}}">✓</text>
+        <block wx:else>
+            <!-- 筛选：临期阈值 N + 匹配范围 + 排序 -->
+            <view class="card ctrl">
+                <view class="ctrl-row">
+                    <view class="ctrl-copy">
+                        <text class="ctrl-title">先吃掉 {{days}} 天内到期的</text>
+                        <text class="ctrl-sub">只留至少含 1 样这么急的食材的菜</text>
+                    </view>
+                    <view class="days-ctrl">
+                        <view class="days-btn {{days <= daysMin ? 'days-btn-off' : ''}}" bindtap="onDaysMinus">−</view>
+                        <text class="days-value">{{days}}</text>
+                        <view class="days-btn {{days >= daysMax ? 'days-btn-off' : ''}}" bindtap="onDaysPlus">＋</view>
                     </view>
                 </view>
-                <view class="empty-state" wx:else>
-                    <text class="empty-emoji">🧊</text>
-                    <text class="empty-title">冰箱还是空的</text>
-                    <text class="empty-desc">先去冰箱页放几样食材，炼金术才有原料。</text>
-                    <view class="btn-ghost" style="margin-top:24rpx" bindtap="goFridge">去放食材</view>
+
+                <view class="range-row">
+                    <view class="range-btn {{full ? '' : 'range-on'}}" data-full="0" bindtap="onRangeTap">只推临期</view>
+                    <view class="range-btn {{full ? 'range-on' : ''}}" data-full="1" bindtap="onRangeTap">全量匹配</view>
+                </view>
+                <text class="range-tip">{{full ? '排除过期食材后，冰箱里能做的全列出来' : '按上面的天数先消灭最急的'}}</text>
+
+                <view class="sort-row">
+                    <text class="sort-label">排序</text>
+                    <view
+                        wx:for="{{sorts}}"
+                        wx:key="key"
+                        class="sort-chip {{sort == item.key ? 'sort-on' : ''}}"
+                        data-sort="{{item.key}}"
+                        bindtap="onSortTap"
+                    >{{item.label}}</view>
                 </view>
 
-                <view class="synth-btn {{selectedCount < 2 ? 'btn-disabled' : ''}}" bindtap="onSynthesize">✨ 合成菜谱</view>
+                <text class="ctrl-stats">{{statsLine}}<text wx:if="{{expiredCount > 0}}"> · {{expiredCount}} 样已过期没算进来</text></text>
             </view>
 
-            <!-- 匹配结果 -->
-            <block wx:if="{{hasResult}}">
-                <view class="result-head">
-                    <text class="section-title">🍽️ 现有食材立即可做</text>
-                    <text class="result-count">{{ready.length}} 道</text>
-                </view>
-                <view class="recipe-card" wx:for="{{ready}}" wx:key="id" data-group="ready" data-index="{{index}}" bindtap="onRecipeTap">
-                    <text class="recipe-emoji">{{item.emoji}}</text>
-                    <view class="recipe-copy">
-                        <text class="recipe-name">{{item.name}}</text>
-                        <text class="recipe-meta">{{item.minutes}} 分钟 · {{item.difficulty}} · 用到 {{item.matchedText}}</text>
-                        <text class="recipe-cooked" wx:if="{{item.cookCount > 0}}">做过 {{item.cookCount}} 次</text>
-                        <text class="recipe-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
-                        <view class="recipe-tags">
-                            <text class="recipe-tag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
-                        </view>
-                    </view>
-                    <text class="recipe-badge">能做</text>
-                </view>
-                <view class="card empty-state" wx:if="{{ready.length === 0}}">
-                    <text class="empty-emoji">🍳</text>
-                    <text class="empty-title">这组搭配还没现成的菜</text>
-                    <text class="empty-desc">往下滑，试试 AI 给你现编一道。</text>
-                </view>
-
-                <view class="result-head" style="margin-top:36rpx">
-                    <text class="section-title">🛒 只差 1 样就能解锁</text>
-                    <text class="result-count">{{missingOne.length}} 道</text>
-                </view>
-                <view class="recipe-card recipe-card-need" wx:for="{{missingOne}}" wx:key="id" data-group="missingOne" data-index="{{index}}" bindtap="onRecipeTap">
-                    <text class="recipe-emoji">{{item.emoji}}</text>
-                    <view class="recipe-copy">
-                        <text class="recipe-name">{{item.name}}</text>
-                        <text class="recipe-meta">{{item.minutes}} 分钟 · 已有 {{item.matchedText}}</text>
-                        <text class="recipe-cooked" wx:if="{{item.cookCount > 0}}">做过 {{item.cookCount}} 次</text>
-                        <text class="recipe-need">只差 <text class="need-word">{{item.missingText}}</text></text>
-                        <text class="recipe-hint" wx:if="{{item.hintText}}">⚠️ {{item.hintText}}</text>
-                    </view>
-                    <view class="add-small" data-name="{{item.missingRaw}}" catchtap="onAddOneMissing">＋买</view>
-                </view>
-                <view class="card empty-state" wx:if="{{missingOne.length === 0}}">
-                    <text class="empty-desc">暂时没有「只差一样」的菜，换个组合试试。</text>
+            <block wx:if="{{noIngredient}}">
+                <view class="card empty-state">
+                    <text class="empty-emoji">🧊</text>
+                    <text class="empty-title">冰箱还是空的</text>
+                    <text class="empty-desc">先去冰箱页放几样食材，这里才有得推荐。</text>
+                    <view class="btn-ghost" style="margin-top:24rpx" bindtap="goFridge">去放食材</view>
                 </view>
             </block>
 
-            <!-- AI 创意菜 -->
-            <view class="ai-card">
-                <view class="row-between">
-                    <text class="section-title">🌶️ 组合太奇葩？</text>
-                    <text class="ai-chip">AI 创意</text>
+            <block wx:else>
+                <view class="list-head">
+                    <text class="list-title">{{showingFallback ? '🛒 只差一样就能开火' : '🏆 今晚推荐'}}</text>
+                    <text class="list-count">{{listTotal}} 道</text>
                 </view>
-                <text class="section-sub">让大厨给你编一道「黑暗但合理」的菜，还能分享给朋友笑一笑。</text>
-                <view class="ai-btn {{aiBusy ? 'btn-disabled' : ''}}" bindtap="onAiCreate">{{aiBusy ? '大厨正在憋大招…' : '✨ 生成 AI 创意菜'}}</view>
-                <view class="ai-stream" wx:if="{{aiText}}">{{aiText}}</view>
-                <view class="ai-result" wx:if="{{aiRecipe}}">
-                    <text class="ai-name">{{aiRecipe.emoji}} {{aiRecipe.name}}</text>
-                    <text class="ai-line">{{aiRecipe.punchline}}</text>
-                    <text class="ai-meta">{{aiRecipe.minutes}} 分钟 · {{aiRecipe.difficulty}}</text>
-                    <text class="ai-step" wx:for="{{aiRecipe.steps}}" wx:key="*this">{{index + 1}}. {{item}}</text>
-                    <text class="ai-line" wx:if="{{aiRecipe.extraText}}">还需补货：{{aiRecipe.extraText}}</text>
-                    <view class="ai-actions">
-                        <view class="ai-mini" bindtap="onSaveAi">{{aiSaved ? '已收藏 ✓' : '收藏这道菜'}}</view>
-                        <view class="ai-mini" bindtap="onAiToShopping">缺的加入买菜篮</view>
+                <text class="list-tip" wx:if="{{showingFallback && listTotal > 0}}">按现在的食材一道现成的都凑不齐，补一样就能解锁下面这些。</text>
+
+                <view
+                    class="rank-card {{index < 3 ? 'rank-card-top' : ''}}"
+                    wx:for="{{items}}"
+                    wx:key="key"
+                    data-key="{{item.key}}"
+                    bindtap="onRecipeTap"
+                >
+                    <view class="rank-no {{index < 3 ? 'rank-no-top' : ''}}">{{item.rank}}</view>
+                    <text class="rank-emoji">{{item.emoji}}</text>
+                    <view class="rank-copy">
+                        <view class="rank-line">
+                            <text class="rank-name">{{item.name}}</text>
+                            <text class="rank-cooked" wx:if="{{item.cookCount > 0}}">已做 {{item.cookCount}} 次</text>
+                        </view>
+                        <text class="rank-meta">{{item.minutes}} 分钟 · {{item.difficulty}}<text wx:if="{{item.matchedText}}"> · 用到 {{item.matchedText}}</text></text>
+                        <text class="rank-urgent {{item.hot ? 'rank-urgent-hot' : ''}}" wx:if="{{!showingFallback}}">⏰ {{item.daysText}}<text wx:if="{{item.urgentText}}"> · {{item.urgentText}}</text></text>
+                        <text class="rank-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
+                        <text class="rank-need" wx:if="{{showingFallback}}">只差 <text class="rank-need-word">{{item.missingText}}</text></text>
+                        <text class="rank-hint" wx:if="{{item.hintText}}">⚠️ {{item.hintText}}</text>
                     </view>
-                    <text class="ai-saved-link" wx:if="{{aiSaved}}" bindtap="goFavorites">已存进我的收藏，去看看 ›</text>
+                    <view
+                        wx:if="{{!showingFallback}}"
+                        class="rank-act {{item.justCooked ? 'rank-act-on' : ''}}"
+                        data-key="{{item.key}}"
+                        catchtap="onMarkCook"
+                    >{{item.justCooked ? '已记 ✓' : '已做 +1'}}</view>
+                    <view wx:else class="rank-act rank-act-buy" data-name="{{item.missingRaw}}" catchtap="onAddMissing">＋买</view>
                 </view>
-                <text class="ai-error" wx:if="{{aiError}}">{{aiError}}</text>
-            </view>
+
+                <view class="card empty-state" wx:if="{{listTotal == 0}}">
+                    <text class="empty-emoji">🍳</text>
+                    <text class="empty-title">按这些食材还凑不出菜</text>
+                    <text class="empty-desc">把天数调大一点，或者切到「全量匹配」再看看。</text>
+                </view>
+
+                <view class="pager" wx:if="{{showTen || showAll || showCollapse}}">
+                    <view class="pager-btn" wx:if="{{showTen}}" bindtap="onShowTen">显示 10 道</view>
+                    <view class="pager-btn" wx:if="{{showAll}}" bindtap="onShowAll">显示全部 {{listTotal}} 道</view>
+                    <view class="pager-btn pager-btn-ghost" wx:if="{{showCollapse}}" bindtap="onCollapse">收起</view>
+                </view>
+            </block>
         </block>
     </block>
 
-    <!-- 客服消息入口：唤起微信客服会话 -->
-    <contact-button mode="fab" source="alchemy" />
+    <!-- 已做之后顺手记一下库存：只是确认，不扣库存 -->
+    <view class="cook-bar" wx:if="{{bar}}">
+        <view class="cook-bar-head">
+            <text class="cook-bar-title">{{bar.emoji}} 记下了「{{bar.name}}」+1</text>
+            <text class="cook-bar-undo" catchtap="onUndoCook">撤销</text>
+        </view>
+        <text class="cook-bar-sub">库存没动，顺手记一下这几样还剩多少？</text>
+        <view class="cook-bar-item" wx:for="{{bar.items}}" wx:key="key">
+            <text class="cook-bar-emoji">{{item.emoji}}</text>
+            <view class="cook-bar-copy">
+                <text class="cook-bar-name">{{item.name}}</text>
+                <text class="cook-bar-qty">{{item.text}}</text>
+            </view>
+            <view class="cook-bar-acts" wx:if="{{!item.done}}">
+                <text class="cook-act cook-act-main" data-index="{{index}}" catchtap="onBarFinish">用完了</text>
+                <text class="cook-act" data-index="{{index}}" catchtap="onBarLittle">剩少量</text>
+                <text class="cook-act" data-index="{{index}}" catchtap="onBarEdit">改数量</text>
+            </view>
+            <text class="cook-bar-done" wx:else>已用完 ✓</text>
+        </view>
+        <view class="cook-bar-close" catchtap="onBarClose">先这样</view>
+    </view>
+
+    <!-- 客服消息入口：唤起微信客服会话；底部确认条打开时先让位 -->
+    <contact-button wx:if="{{!bar}}" mode="fab" source="alchemy" />
     <tab-bar current="alchemy" />
 
     <!-- 菜谱详情 -->
@@ -141,18 +161,27 @@
         <view class="sheet-handle"></view>
         <text class="detail-emoji">{{detail.emoji}}</text>
         <text class="sheet-title">{{detail.name}}</text>
-        <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}} · {{detail.matchedText}}</text>
+        <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}}<text wx:if="{{detail.matchedText}}"> · 用到 {{detail.matchedText}}</text></text>
         <text class="cooked-note" wx:if="{{detail.cookCount > 0}}">这道菜全家已做过 {{detail.cookCount}} 次</text>
         <view class="detail-note" wx:if="{{detail.approxText}}">🔁 {{detail.approxText}}</view>
         <view class="detail-note detail-note-warn" wx:if="{{detail.hintText}}">⚠️ {{detail.hintText}}</view>
         <text class="field-label">用料</text>
-        <text class="detail-need">{{detail.mainItemsText}}</text>
+        <text class="detail-need">{{detail.mainItemsText}}<text wx:if="{{detail.seasoningText}}">（调料：{{detail.seasoningText}}）</text></text>
         <text class="field-label">做法</text>
         <view class="detail-step" wx:for="{{detail.steps}}" wx:key="*this">
             <text class="step-no">{{index + 1}}</text>
             <text class="step-text">{{item}}</text>
         </view>
         <view class="btn-yellow" style="margin-top:30rpx" wx:if="{{detail.missing.length > 0}}" bindtap="onAddDetailMissing">🛒 缺的 {{detail.missingText}} 加入买菜篮</view>
-        <view class="btn-primary" style="margin-top:20rpx" bindtap="closeDetail">今晚就做这个 👩‍🍳</view>
+        <view class="btn-primary" style="margin-top:20rpx" wx:if="{{detail.canCook}}" data-key="{{detail.key}}" bindtap="onMarkCook">今天做了这道 · 已做 +1</view>
+        <view class="btn-ghost" style="margin-top:16rpx" bindtap="closeDetail">收起</view>
     </view>
+
+    <qty-sheet
+        visible="{{qtySheet.visible}}"
+        name="{{qtySheet.name}}"
+        value="{{qtySheet.value}}"
+        bind:save="onQtySave"
+        bind:close="onQtyClose"
+    />
 </view>

@@ -71,7 +71,7 @@ function standInFor(ownedIds, neededId) {
 }
 
 // 用料 vs 库存的解释层：谁命中、谁缺、谁在「拿别的东西顶」、谁「够不上」。
-// 所有页面（炼金术 / 收藏 / 点菜板）都从这里拿结论，避免各写一套判定。
+// 所有页面（今日推荐 / 收藏 / 点菜板）都从这里拿结论，避免各写一套判定。
 function explain(ownedIds, neededNames, ctx) {
     const labelCtx = ctx || foodNames.CTX_INTERNAL;
     const owned = (ownedIds || []).map(toFoodId).filter(Boolean);

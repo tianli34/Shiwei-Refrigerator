@@ -1,0 +1,52 @@
+<view class="mask" wx:if="{{visible}}" bindtap="onClose"></view>
+<view class="qs-sheet" wx:if="{{visible}}" catchtap="noop">
+    <view class="sheet-handle"></view>
+
+    <view class="qs-head">
+        <text class="qs-title">还剩多少「{{name}}」</text>
+        <text class="qs-close" bindtap="onClose">✕</text>
+    </view>
+    <text class="qs-sub">点个大概的量，或者填个数字都行</text>
+
+    <view class="qs-modes">
+        <view
+            wx:for="{{modes}}"
+            wx:key="key"
+            class="qs-mode qs-mode-{{item.key}} {{mode == item.key ? 'qs-mode-on' : ''}}"
+            data-mode="{{item.key}}"
+            bindtap="onModeTap"
+        >{{item.label}}</view>
+    </view>
+    <text class="qs-desc">{{activeDesc}}</text>
+
+    <view class="qs-exact" wx:if="{{mode == 'exact'}}">
+        <input
+            class="qs-input"
+            type="digit"
+            confirm-type="done"
+            maxlength="6"
+            placeholder="比如 2"
+            value="{{qty}}"
+            bindinput="onQtyInput"
+        />
+        <view class="qs-unit-row">
+            <text class="qs-unit-hint">单位</text>
+            <scroll-view class="qs-unit-scroll" scroll-x show-scrollbar="{{false}}">
+                <view class="qs-unit-grid">
+                    <view
+                        wx:for="{{unitChips}}"
+                        wx:key="id"
+                        class="qs-unit {{item.recent ? 'qs-unit-recent' : ''}} {{item.custom ? 'qs-unit-custom' : ''}} {{(unit == item.value && !item.none) || (!unit && item.none) ? 'qs-unit-on' : ''}}"
+                        data-unit="{{item.value}}"
+                        bindtap="onUnitTap"
+                    >{{item.label}}</view>
+                </view>
+            </scroll-view>
+        </view>
+    </view>
+
+    <view class="qs-preview qs-preview-{{previewKind}}">这次记的是：{{preview}}</view>
+
+    <view class="btn-primary qs-save" bindtap="onSave">就是这样</view>
+    <view class="btn-ghost qs-cancel" bindtap="onClose">先不改</view>
+</view>

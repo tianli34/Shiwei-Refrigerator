@@ -91,6 +91,8 @@ Page(createAuthMixin({
         parsing: false,
         parseNote: '',
         receiptBusy: false,
+        // 点卡片上的「数量」弹出的改档层：只改 quantity 这一个描述串。
+        qtySheet: { visible: false, id: '', name: '', value: '' },
     },
 
     onReady: function () {
@@ -127,7 +129,8 @@ Page(createAuthMixin({
                 fresh: util.freshness(row),
                 qtyKind: quantity.kindOf(row.quantity),
                 consumedCount: count,
-                consumedLabel: count > 0 ? ('已吃掉 ' + count + ' 次') : '还没吃掉过',
+                // 0 次不占版面：刚上线时满屏「0 次」比不显示更像坏了。
+                consumedLabel: count > 0 ? ('已吃掉 ' + count + ' 次') : '',
             });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;
@@ -206,18 +209,37 @@ Page(createAuthMixin({
         });
     },
 
-    goAlchemy: function () {
-        wx.removeStorageSync('alchemy_preselect');
+    // 今日推荐菜进页就自己算全量匹配，不再需要跨页预选；临期卡只负责把人带过去。
+    goRecommend: function () {
         wx.reLaunch({ url: '/pages/alchemy/alchemy' });
     },
 
-    goAlchemyWithExpiring: function () {
-        // 跨页预选传稳定身份，不传展示名；叫法一变也不会失配。
-        const ids = (this.data.expiring || []).map(function (row) {
-            return row.food_id || dict.resolveId(row.name);
-        }).filter(Boolean);
-        wx.setStorageSync('alchemy_preselect', { ids: ids, names: [] });
-        wx.reLaunch({ url: '/pages/alchemy/alchemy' });
+    // ---------- 点数量改档 ----------
+    onFoodQtyTap: function (event) {
+        const id = event.currentTarget.dataset.id;
+        const row = (this.allItems || []).filter(function (item) { return item.id === id; })[0];
+        if (!row) return;
+        this.setData({
+            qtySheet: { visible: true, id: id, name: row.display || row.name, value: row.quantity || '' },
+        });
+    },
+
+    onQtySheetSave: async function (event) {
+        const id = this.data.qtySheet.id;
+        if (!id) return;
+        const text = event.detail.quantity || '';
+        const result = await stores.ingredients.update(id, { quantity: text });
+        if (result.error) {
+            util.toast(util.errorMessage(result.error, '没改成，再试一次'));
+            return;
+        }
+        this.setData({ qtySheet: { visible: false, id: '', name: '', value: '' } });
+        util.toast(text ? '记成「' + text + '」了' : '数量已清空');
+        await this.loadData();
+    },
+
+    onQtySheetClose: function () {
+        this.setData({ qtySheet: { visible: false, id: '', name: '', value: '' } });
     },
 
     // ---------- 极速录入 ----------

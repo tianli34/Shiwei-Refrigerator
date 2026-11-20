@@ -110,6 +110,23 @@ function modeMeta(key) {
     return MODES.filter(function (item) { return item.key === key; })[0] || MODES[0];
 }
 
+// 从已存的描述串反推「数值 + 单位」，供列表里点数量改档时回显。
+// 只做拆分，不改写：拆不出来的（「一大堆」「两斤」）整串留在数值框里，
+// 用户保存时原样拼回去，历史数据不会因为点开过一次就被悄悄改掉。
+function parse(text) {
+    const raw = String(text == null ? '' : text).trim();
+    const mode = modeOf(raw);
+    if (mode !== 'exact') return { mode: mode, qty: '', unit: '' };
+    const parts = raw.split(/\s+/);
+    if (parts.length >= 2) {
+        return { mode: 'exact', qty: parts[0], unit: parts.slice(1).join(' ') };
+    }
+    // 「2盒」这种没空格的写法：只在数字打头时才拆，避免把「两斤」撕成「两」+「斤」。
+    const packed = raw.match(/^(\d+(?:\.\d+)?)([^\d].*)$/);
+    if (packed) return { mode: 'exact', qty: packed[1], unit: packed[2].trim() };
+    return { mode: 'exact', qty: raw, unit: '' };
+}
+
 module.exports = {
     FUZZY: FUZZY,
     MODES: MODES,
@@ -121,4 +138,5 @@ module.exports = {
     build: build,
     modeOf: modeOf,
     modeMeta: modeMeta,
+    parse: parse,
 };

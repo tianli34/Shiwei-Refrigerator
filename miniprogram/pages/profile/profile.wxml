@@ -92,7 +92,7 @@
                 <text class="section-title">📖 我的收藏</text>
                 <text class="setting-arrow">›</text>
             </view>
-            <text class="section-sub">{{stats.aiRecipes > 0 ? 'AI 给你编过 ' + stats.aiRecipes + ' 道菜，点开就能翻做法' : '在炼金术里收藏的创意菜会存在这里，随时翻出来做'}}</text>
+            <text class="section-sub">{{stats.aiRecipes > 0 ? 'AI 给你编过 ' + stats.aiRecipes + ' 道菜，点开就能翻做法' : '收藏过的菜都存在这里，随时翻出来做'}}</text>
         </view>
 
         <view class="card" bindtap="goFamily">

@@ -233,21 +233,23 @@
     color: #A69C8B;
 }
 
+/* 数量可以点：淡下划线给个「这儿能改」的暗示，✎ 只在同色系里露一下 */
+.food-qty-edit {
+    font-size: 19rpx;
+    color: #B9C4AD;
+}
+
 /* 模糊数量用奶酪黄，和灰色的「2 盒」这类精确描述一眼分开 */
 .food-qty-fuzzy {
     color: #B9832B;
     font-weight: 600;
 }
 
-/* 食材已消耗次数：常显，但 0 次用浅灰弱化，避免刚上线时满屏「0」像坏掉了 */
+/* 食材已消耗次数：>0 才渲染，用奶酪黄和「还剩几天」的绿/橙区分开 */
 .food-consumed {
     display: block;
     margin-top: 6rpx;
     font-size: 20rpx;
-    color: #B3AA9B;
-}
-
-.food-consumed-on {
     color: #A1752A;
     font-weight: 600;
 }
@@ -285,36 +287,6 @@
 }
 
 .food-act-del { color: #C98D7C; }
-
-.alchemy-entry {
-    display: flex;
-    align-items: center;
-    margin-top: 12rpx;
-    padding: 28rpx;
-    border-radius: 30rpx;
-    background: linear-gradient(120deg, #7FB069, #96BE74);
-    box-shadow: 0 12rpx 28rpx rgba(127, 176, 105, 0.26);
-}
-
-.alchemy-emoji { font-size: 58rpx; }
-
-.alchemy-copy { flex: 1; margin-left: 20rpx; }
-
-.alchemy-title {
-    display: block;
-    font-size: 31rpx;
-    font-weight: 800;
-    color: #FFFFFF;
-}
-
-.alchemy-desc {
-    display: block;
-    margin-top: 6rpx;
-    font-size: 22rpx;
-    color: #EDF6E5;
-}
-
-.alchemy-arrow { font-size: 38rpx; color: #FFFFFF; }
 
 .fab {
     position: fixed;

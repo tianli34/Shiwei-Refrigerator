@@ -33,7 +33,7 @@ Page(createAuthMixin({
     },
 
     onRetryData: function () { this.restore(); },
-    goAlchemy: function () { wx.reLaunch({ url: '/pages/alchemy/alchemy' }); },
+    goRecommend: function () { wx.reLaunch({ url: '/pages/alchemy/alchemy' }); },
     onNewName: function (event) { this.setData({ newName: event.detail.value }); },
 
     onAdd: async function () {

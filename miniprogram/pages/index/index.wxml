@@ -47,7 +47,7 @@
         <view class="alert-card" wx:if="{{urgentCount > 0}}">
             <view class="row-between">
                 <text class="alert-title">⏰ {{urgentCount}} 样快过期啦</text>
-                <text class="alert-more" bindtap="goAlchemyWithExpiring">去消耗 →</text>
+                <text class="alert-more" bindtap="goRecommend">去看推荐 →</text>
             </view>
             <text class="alert-names">{{expiringNames}}</text>
             <text class="alert-tip">还有 2 天寿命的食材，最适合先下锅</text>
@@ -91,8 +91,12 @@
                         <text class="food-days">{{item.fresh.label}}</text>
                     </view>
                     <text class="food-name" data-id="{{item.food_id}}" catchtap="onFoodNameTap">{{item.display}} <text class="food-edit">✎</text></text>
-                    <text class="food-qty {{item.qtyKind == 'fuzzy' ? 'food-qty-fuzzy' : ''}}">{{item.quantity || '数量没记'}}</text>
-                    <text class="food-consumed {{item.consumedCount > 0 ? 'food-consumed-on' : ''}}">{{item.consumedLabel}}</text>
+                    <text
+                        class="food-qty {{item.qtyKind == 'fuzzy' ? 'food-qty-fuzzy' : ''}}"
+                        data-id="{{item.id}}"
+                        catchtap="onFoodQtyTap"
+                    >{{item.quantity || '数量没记'}} <text class="food-qty-edit">✎</text></text>
+                    <text class="food-consumed" wx:if="{{item.consumedCount > 0}}">{{item.consumedLabel}}</text>
                     <view class="bar"><view class="bar-fill bar-{{item.fresh.level}}" style="width:{{item.fresh.percent}}%"></view></view>
                     <view class="food-actions" wx:if="{{expandedItem == item.id}}">
                         <text class="food-act" data-id="{{item.id}}" catchtap="onConsume">✅ 吃掉了</text>
@@ -105,15 +109,6 @@
                 <text class="empty-emoji">{{emptyEmoji}}</text>
                 <text class="empty-title">这一层还空着呢</text>
                 <text class="empty-desc">点右下角的 ➕，用一句话、一张小票或一个标签，就能把食材请进冰箱。</text>
-            </view>
-
-            <view class="alchemy-entry" bindtap="goAlchemy">
-                <text class="alchemy-emoji">✨</text>
-                <view class="alchemy-copy">
-                    <text class="alchemy-title">食材炼金术</text>
-                    <text class="alchemy-desc">勾 2~4 样现有食材，合成今晚的菜</text>
-                </view>
-                <text class="alchemy-arrow">→</text>
             </view>
         </block>
     </block>
@@ -132,6 +127,13 @@
         bind:pick="onNamePickerPick"
         bind:reset="onNamePickerReset"
         bind:close="onNamePickerClose"
+    />
+    <qty-sheet
+        visible="{{qtySheet.visible}}"
+        name="{{qtySheet.name}}"
+        value="{{qtySheet.value}}"
+        bind:save="onQtySheetSave"
+        bind:close="onQtySheetClose"
     />
 
     <!-- 极速录入弹层 -->
