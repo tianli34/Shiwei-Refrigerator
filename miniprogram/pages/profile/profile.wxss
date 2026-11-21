@@ -45,6 +45,17 @@
 .stat-label { display: block; margin-top: 6rpx; font-size: 21rpx; color: #9C9284; }
 .stat-link .stat-label { color: #7351A0; }
 
+/* 已过期单独一行，颜色比「快过期」更重一点 */
+.stat-note {
+    margin: -6rpx 0 24rpx;
+    padding: 16rpx 22rpx;
+    border-radius: 20rpx;
+    background: #FFF1EC;
+    border: 2rpx solid #F3C3B7;
+    font-size: 23rpx;
+    color: #B4503A;
+}
+
 .card { margin-bottom: 24rpx; }
 
 .setting-row {
@@ -59,9 +70,11 @@
 .setting-label { display: block; font-size: 27rpx; color: #4A4036; }
 .setting-hint { display: block; margin-top: 6rpx; font-size: 21rpx; color: #A69C8B; }
 .setting-arrow { font-size: 40rpx; color: #BDB3A1; }
+/* 唯一一个会删数据的入口，颜色得和普通设置项区分开 */
+.setting-danger { color: #B4503A; }
 
 .about {
-    margin: 40rpx 0 24rpx;
+    margin: 8rpx 0 24rpx;
     text-align: center;
 }
 

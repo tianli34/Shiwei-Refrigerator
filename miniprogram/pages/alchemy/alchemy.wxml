@@ -151,8 +151,6 @@
         <view class="cook-bar-close" catchtap="onBarClose">先这样</view>
     </view>
 
-    <!-- 客服消息入口：唤起微信客服会话；底部确认条打开时先让位 -->
-    <contact-button wx:if="{{!bar}}" mode="fab" source="alchemy" />
     <tab-bar current="alchemy" />
 
     <!-- 菜谱详情 -->

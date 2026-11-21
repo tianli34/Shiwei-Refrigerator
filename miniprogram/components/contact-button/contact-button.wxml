@@ -1,7 +1,7 @@
-<!-- 客服消息按钮：open-type="contact" 由微信原生唤起客服会话页面 -->
-<view class="cb-root cb-root-{{mode}}" style="bottom:{{bottom}}">
+<!-- 反馈入口：一行文字，open-type="contact" 由微信原生唤起客服会话 -->
+<view class="cb-root">
     <button
-        class="cb-button cb-button-{{mode}}"
+        class="cb-button"
         open-type="contact"
         session-from="{{sessionFrom}}"
         send-message-title="{{messageTitle}}"
@@ -11,18 +11,7 @@
         bindtap="onTap"
         hover-class="cb-hover"
     >
-        <block wx:if="{{mode === 'fab'}}">
-            <text class="cb-fab-emoji">💬</text>
-            <text class="cb-fab-label">客服</text>
-        </block>
-
-        <view wx:else class="cb-card-row">
-            <text class="cb-card-emoji">💬</text>
-            <view class="cb-card-copy">
-                <text class="cb-card-title">{{title}}</text>
-                <text class="cb-card-desc">{{desc}}</text>
-            </view>
-            <text class="cb-card-arrow">›</text>
-        </view>
+        <text class="cb-link-text">{{text}}</text>
+        <text class="cb-link-arrow">›</text>
     </button>
 </view>

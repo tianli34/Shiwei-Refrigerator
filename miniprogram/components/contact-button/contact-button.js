@@ -1,6 +1,7 @@
-// 客服消息按钮：封装微信原生 button 的 open-type="contact"。
+// 反馈入口：封装微信原生 button 的 open-type="contact"。
 // 点击后由微信唤起小程序客服会话，用户可以在会话里直接给小程序发消息；
 // 客服人员需在小程序后台「功能 → 客服 → 客服管理」绑定微信号后接收与回复。
+// 形态固定为页脚一行文字：反馈是兜底能力，不该在主界面占一个按钮位。
 
 // 与 login-panel 保持一致的运行环境判断：没有真实 AppID 时无法唤起客服会话。
 function readRuntimeAppId() {
@@ -15,15 +16,10 @@ function readRuntimeAppId() {
 
 Component({
     properties: {
-        // fab: 左下角悬浮胶囊按钮；card: 内联卡片入口
-        mode: { type: String, value: 'fab' },
         // 会话来源标识，客服侧可据此区分用户从哪个页面进来
         source: { type: String, value: 'app' },
-        // fab 距页面底部的距离，可按页面底部元素微调
-        bottom: { type: String, value: '168rpx' },
-        // card 模式的文案
-        title: { type: String, value: '💬 联系客服' },
-        desc: { type: String, value: '食材、菜谱、共享冰箱有问题？点这里直接给小程序发消息' },
+        // 文案：用产品语气，界面上不出现「客服」这个词
+        text: { type: String, value: '用得不顺？跟我们说一声' },
     },
 
     data: {

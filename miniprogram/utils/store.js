@@ -202,6 +202,34 @@ function bumpConsumedCount(foodId, delta) {
     return bumpCount(ingredientConsumedCounts, 'food_id', 'consumed_count', foodId, delta);
 }
 
+// 批量删除：数据访问层与云端都只有「按 id 删一条」，没有批量入口，
+// 所以只能一条一条发。串行太慢（50 样要等十几秒），全并发又会把一次清空
+// 变成几十个同时到达的请求，所以固定 4 个并发轮流取队列。
+// 返回 { removed, failed }：部分失败要如实告诉用户删掉了几样，
+// 不能因为最后一条失败就把「已经删了 39 样」说成「清空失败」。
+async function removeEach(table, rows) {
+    const queue = (rows || []).filter(function (row) { return row && row.id; }).slice();
+    let removed = 0;
+    let failed = 0;
+    const LIMIT = 4;
+
+    async function worker() {
+        for (;;) {
+            const row = queue.shift();
+            if (!row) return;
+            const result = await table.remove(row.id);
+            if (result && result.error) failed += 1;
+            else removed += 1;
+        }
+    }
+
+    const workers = [];
+    const size = Math.min(LIMIT, queue.length);
+    for (let i = 0; i < size; i += 1) workers.push(worker());
+    await Promise.all(workers);
+    return { removed: removed, failed: failed };
+}
+
 async function findHouseholdByCode(code) {
     const result = await cloud.database.from('households').select('id, name, invite_code, owner_id').eq('invite_code', String(code || '').trim().toUpperCase()).limit(1);
     if (result.error) return { data: null, error: result.error };
@@ -243,6 +271,7 @@ module.exports = {
     consumedCountMap: consumedCountMap,
     bumpCookCount: bumpCookCount,
     bumpConsumedCount: bumpConsumedCount,
+    removeEach: removeEach,
     findHouseholdByCode: findHouseholdByCode,
     findShareByCode: findShareByCode,
     listVotes: listVotes,

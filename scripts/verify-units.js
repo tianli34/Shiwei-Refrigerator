@@ -55,6 +55,7 @@ const stubs = {
         today: function () { return '2026-11-14'; },
         addDays: function () { return '2026-11-17'; },
         freshness: function () { return { left: 3 }; },
+        expiryBuckets: function () { return { expired: [], urgent: [] }; },
         errorMessage: function () { return ''; },
     },
     '../../utils/food-dict': { resolve: function () { return {}; }, meta: function () { return {}; } },
@@ -63,7 +64,10 @@ const stubs = {
         labelOf: function (name) { return name; },
         displayName: function () { return ''; },
     },
-    '../../utils/subscribe': { expiringNamesText: function () { return ''; } },
+    '../../utils/subscribe': {
+        expiringNamesText: function () { return ''; },
+        alertCopy: function () { return { title: '', tip: '', tone: '' }; },
+    },
 };
 const originalLoad = Module._load;
 Module._load = function (request) {

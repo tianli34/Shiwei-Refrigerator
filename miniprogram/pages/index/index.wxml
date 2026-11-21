@@ -43,14 +43,21 @@
             <view class="head-count">{{totalCount}} 样</view>
         </view>
 
-        <!-- 临期预警 -->
-        <view class="alert-card" wx:if="{{urgentCount > 0}}">
+        <!-- 临期预警：已过期与快过期分开说，过期优先 -->
+        <view class="alert-card alert-card-{{alertTone}}" wx:if="{{alertTitle}}">
             <view class="row-between">
-                <text class="alert-title">⏰ {{urgentCount}} 样快过期啦</text>
+                <text class="alert-title">{{alertTitle}}</text>
                 <text class="alert-more" bindtap="goRecommend">去看推荐 →</text>
             </view>
             <text class="alert-names">{{expiringNames}}</text>
-            <text class="alert-tip">还有 2 天寿命的食材，最适合先下锅</text>
+            <text class="alert-tip">{{alertTip}}</text>
+            <!-- 过期清空只贴在这里：这卡片是唯一知道「确实有过期」的地方，
+                 按钮离开这个上下文就没意义了。快过期但没过期的不给这个入口。
+                 文案用「已清掉了」而不是「清掉」：这个动作永远是先扔真冰箱、
+                 再回来划掉，App 只负责记账，不该反过来指挥用户去扔东西。 -->
+            <view class="alert-clear" wx:if="{{expiredCount > 0}}" bindtap="onClearExpired">
+                <text>🧹 已清掉了这 {{expiredCount}} 样过期的</text>
+            </view>
         </view>
 
         <view class="card" wx:if="{{viewState === 'error'}}">
@@ -115,8 +122,6 @@
 
     <!-- 悬浮录入 -->
     <view class="fab" wx:if="{{authState === 'signed-in'}}" bindtap="openAddSheet">＋</view>
-    <!-- 客服消息入口：唤起微信客服会话 -->
-    <contact-button mode="fab" source="index" />
     <tab-bar current="index" />
     <name-picker
         visible="{{namePicker ? true : false}}"

@@ -162,7 +162,10 @@ const pageStubs = {
         labelOf: function (name) { return name; },
         displayName: function () { return ''; },
     },
-    '../../utils/subscribe': { expiringNamesText: function () { return ''; } },
+    '../../utils/subscribe': {
+        expiringNamesText: function () { return ''; },
+        alertCopy: function () { return { title: '', tip: '', tone: '' }; },
+    },
 };
 
 function loadPage() {

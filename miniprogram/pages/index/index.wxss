@@ -139,6 +139,30 @@
     color: #B2936D;
 }
 
+/* 有已过期食材时整卡换成暖红，和「快过期」的黄色一眼区分开 */
+.alert-card-expired {
+    background: linear-gradient(120deg, #FFE3DC, #FFF1EC);
+    border-color: #F3C3B7;
+}
+
+.alert-card-expired .alert-title { color: #B4503A; }
+.alert-card-expired .alert-more { color: #C4634C; }
+.alert-card-expired .alert-names { color: #7C554B; }
+.alert-card-expired .alert-tip { color: #B58C81; }
+
+/* 清过期的入口做得轻：它就在提醒条里，不该比「去看推荐」更抢眼 */
+.alert-clear {
+    display: inline-block;
+    margin-top: 18rpx;
+    padding: 12rpx 26rpx;
+    border-radius: 999rpx;
+    background: #FFFFFF;
+    border: 2rpx solid #F3C3B7;
+    font-size: 24rpx;
+    font-weight: 700;
+    color: #B4503A;
+}
+
 .zone-bar {
     width: 100%;
     white-space: nowrap;

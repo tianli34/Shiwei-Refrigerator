@@ -77,8 +77,6 @@
         </view>
     </block>
 
-    <!-- 客服消息入口：唤起微信客服会话 -->
-    <contact-button mode="fab" source="family" />
     <tab-bar current="family" />
 
     <!-- 点菜汇总 -->

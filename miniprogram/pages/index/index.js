@@ -64,6 +64,10 @@ Page(createAuthMixin({
         expiringNames: '',
         totalCount: 0,
         urgentCount: 0,
+        expiredCount: 0,
+        alertTitle: '',
+        alertTip: '',
+        alertTone: '',
         emptyEmoji: '🥛',
         householdLabel: '一个人的冰箱，也要好好吃饭',
         expandedItem: 0,
@@ -135,17 +139,22 @@ Page(createAuthMixin({
             });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;
-        const expiring = (reminderOn ? decorated.filter(function (row) { return row.fresh.left <= 2; }) : []).sort(function (a, b) {
-            return a.fresh.left - b.fresh.left;
-        });
+        // 已过期和快过期分开数：过期的食材不是「快过期」，文案也要认账。
+        const buckets = util.expiryBuckets(reminderOn ? decorated : []);
+        const alertRows = buckets.expired.concat(buckets.urgent);
+        const alert = subscribe.alertCopy(buckets.expired.length, buckets.urgent.length);
         const app = getApp();
         this.allItems = decorated;
         this.setData({
             viewState: 'ready',
             totalCount: decorated.length,
-            urgentCount: expiring.length,
-            expiring: expiring.slice(0, 8),
-            expiringNames: subscribe.expiringNamesText(expiring),
+            urgentCount: buckets.urgent.length,
+            expiredCount: buckets.expired.length,
+            alertTitle: alert.title,
+            alertTip: alert.tip,
+            alertTone: alert.tone,
+            expiring: alertRows.slice(0, 8),
+            expiringNames: subscribe.expiringNamesText(alertRows),
             householdLabel: app.householdName ? '🏡 ' + app.householdName + ' · 全家同步中' : '一个人的冰箱，也要好好吃饭',
             commonFoods: util.COMMON_FOODS.map(function (food) {
                 return Object.assign({}, food, { display: foodNames.labelOf(food.name) });
@@ -213,6 +222,45 @@ Page(createAuthMixin({
     // 今日推荐菜进页就自己算全量匹配，不再需要跨页预选；临期卡只负责把人带过去。
     goRecommend: function () {
         wx.reLaunch({ url: '/pages/alchemy/alchemy' });
+    },
+
+    // 清空过期食材：「已清掉了」是记账，不是命令 —— 用户扔完真冰箱才回来点，
+    // App 只负责把这一笔记上，不该反过来指挥用户去扔东西。
+    // 所以弹窗是确认既成事实（「都扔掉了？」），不是「要清掉吗？」。
+    // 集合只认「真的过期了」的行，扔了不心疼，所以不设二次输入；
+    // 但必须先把名字列出来 —— 「过期一天到底还能不能喝」各家判断不同，
+    // 得让人看见自己要划掉的是哪几样，才有机会发现自己其实还留着。
+    onClearExpired: function () {
+        const expired = (this.allItems || []).filter(function (row) {
+            return row && row.fresh && row.fresh.left < 0;
+        });
+        if (!expired.length) {
+            util.toast('现在没有过期的食材');
+            return;
+        }
+        const names = expired.slice(0, 4).map(function (row) {
+            return row.display || row.name;
+        }).join('、');
+        const more = expired.length > 4 ? ' 等 ' + expired.length + ' 样' : '';
+        const that = this;
+        wx.showModal({
+            title: '这 ' + expired.length + ' 样都扔掉了？',
+            content: names + more + ' 会从冰箱里划掉，划掉就找不回来了。',
+            confirmText: '都扔了',
+            success: async function (res) {
+                if (!res.confirm) return;
+                wx.showLoading({ title: '正在记上', mask: true });
+                const outcome = await stores.removeEach(stores.ingredients, expired);
+                wx.hideLoading();
+                if (outcome.failed) {
+                    util.toast('划掉 ' + outcome.removed + ' 样，还有 ' + outcome.failed + ' 样没删掉，再试一次');
+                } else {
+                    util.toast('记下了，' + outcome.removed + ' 样清出冰箱 🧹');
+                }
+                that.setData({ expandedItem: 0 });
+                await that.loadData();
+            },
+        });
     },
 
     // ---------- 点数量改档 ----------

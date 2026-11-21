@@ -53,6 +53,31 @@ function diffDays(target) {
     return Math.round((a - b) / 86400000);
 }
 
+// 「快过期」只指还没坏的那 2 天。已过期（left < 0）单独成桶，
+// 否则整冰箱都过期时会被说成「27 样快过期啦」，等于没提醒。
+const URGENT_DAYS = 2;
+
+function leftOf(row) {
+    if (row && row.fresh && typeof row.fresh.left === 'number') return row.fresh.left;
+    return diffDays(row && row.expiry_on);
+}
+
+// 首页提醒条、我的统计、订阅文案预览都从这里取，口径只留一处。
+function expiryBuckets(rows) {
+    const expired = [];
+    const urgent = [];
+    (rows || []).forEach(function (row) {
+        const left = leftOf(row);
+        if (left < 0) expired.push(row);
+        else if (left <= URGENT_DAYS) urgent.push(row);
+    });
+    // 过期最久 / 最快到期的排前面：提醒条只露前几个名字，得挑最该先处理的。
+    const byLeft = function (a, b) { return leftOf(a) - leftOf(b); };
+    expired.sort(byLeft);
+    urgent.sort(byLeft);
+    return { expired: expired, urgent: urgent };
+}
+
 // 保质期进度：绿 → 黄 → 红，返回渲染所需的全部字段，避免在 WXML 里做计算。
 function freshness(row) {
     const left = diffDays(row.expiry_on);
@@ -112,9 +137,12 @@ function errorMessage(error, fallback) {
 module.exports = {
     ZONES: ZONES,
     COMMON_FOODS: COMMON_FOODS,
+    URGENT_DAYS: URGENT_DAYS,
     today: today,
     addDays: addDays,
     diffDays: diffDays,
+    leftOf: leftOf,
+    expiryBuckets: expiryBuckets,
     freshness: freshness,
     makeCode: makeCode,
     pick: pick,

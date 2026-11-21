@@ -22,6 +22,33 @@ function expiringNamesText(rows) {
     }).join('、');
 }
 
+// 首页提醒条的标题与提示：过期不是「快过期」，两种状态分开说，
+// 全都过期时不能再报「N 样快过期啦」。tone 只用于给卡片换配色。
+function alertCopy(expiredCount, urgentCount) {
+    const expired = Math.max(0, Number(expiredCount) || 0);
+    const urgent = Math.max(0, Number(urgentCount) || 0);
+    if (!expired && !urgent) return { title: '', tip: '', tone: '' };
+    if (expired && urgent) {
+        return {
+            title: '⏰ ' + urgent + ' 样快过期 · ' + expired + ' 样已过期',
+            tip: '过期的先清出去，快过期的今天先下锅',
+            tone: 'expired',
+        };
+    }
+    if (expired) {
+        return {
+            title: '⚠️ ' + expired + ' 样已过期，别再放了',
+            tip: '该扔的扔掉、还能救的今天吃掉，冰箱也清爽',
+            tone: 'expired',
+        };
+    }
+    return {
+        title: '⏰ ' + urgent + ' 样快过期啦',
+        tip: '还剩 2 天寿命的食材，最适合先下锅',
+        tone: 'urgent',
+    };
+}
+
 // 服务端调用 subscribeMessage.send 时，食物名称字段应传这个结果。
 function expiryNoticeText(rows) {
     const list = (rows || []).slice(0, 3).map(displayOf).filter(Boolean);
@@ -74,6 +101,7 @@ module.exports = {
     TEMPLATE_ID: TEMPLATE_ID,
     hint: hint,
     request: request,
+    alertCopy: alertCopy,
     expiringNamesText: expiringNamesText,
     expiryNoticeText: expiryNoticeText,
 };

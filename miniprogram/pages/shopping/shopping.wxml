@@ -84,8 +84,6 @@
         </block>
     </block>
 
-    <!-- 客服消息入口：唤起微信客服会话 -->
-    <contact-button mode="fab" source="shopping" />
     <tab-bar current="shopping" />
     <name-picker
         visible="{{namePicker ? true : false}}"

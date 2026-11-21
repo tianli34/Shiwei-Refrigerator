@@ -48,6 +48,6 @@
         <view class="btn-primary" style="margin-top:30rpx" bindtap="goHome">我也想有个这样的冰箱 🧊</view>
     </block>
 
-    <!-- 点菜客人也能找客服（该页没有底部导航，悬浮位置下移） -->
-    <contact-button mode="fab" source="order" bottom="48rpx" />
+    <!-- 客人遇到问题时的入口：一行文字，和说明同级，不抢「点菜」的焦点 -->
+    <contact-button source="order" text="菜单有问题？说给我们听" />
 </view>

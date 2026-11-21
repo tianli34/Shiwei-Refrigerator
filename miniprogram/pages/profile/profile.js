@@ -10,7 +10,7 @@ Page(createAuthMixin({
         viewState: 'ready',
         userLabel: '',
         householdLabel: '还没加入共享冰箱',
-        stats: { foods: 0, urgent: 0, shopping: 0, aiRecipes: 0 },
+        stats: { foods: 0, urgent: 0, expired: 0, shopping: 0, aiRecipes: 0 },
         reminderOn: true,
         subscribeHint: subscribe.hint(),
         nameRegion: 'common',
@@ -20,6 +20,7 @@ Page(createAuthMixin({
         nameSyncHint: '',
         namePrefCount: 0,
         showRegionSheet: false,
+        clearHint: '冰箱现在是空的',
     },
 
     loadData: async function () {
@@ -32,6 +33,8 @@ Page(createAuthMixin({
         const shopping = results[1].error ? [] : (results[1].data || []);
         const saved = results[2].error ? [] : (results[2].data || []);
         const active = foods.filter(function (row) { return !row.consumed; });
+        // 和首页共用一套口径：快过期只数 0~2 天，已过期的另算。
+        const buckets = util.expiryBuckets(active);
         const user = this.data.user || {};
         const app = getApp();
         const status = foodNames.status();
@@ -39,7 +42,8 @@ Page(createAuthMixin({
         this.setData({
             stats: {
                 foods: active.length,
-                urgent: active.filter(function (row) { return util.diffDays(row.expiry_on) <= 2; }).length,
+                urgent: buckets.urgent.length,
+                expired: buckets.expired.length,
                 shopping: shopping.filter(function (row) { return !row.done; }).length,
                 aiRecipes: saved.filter(function (row) { return row.source === 'ai'; }).length,
             },
@@ -57,6 +61,12 @@ Page(createAuthMixin({
             nameSyncHint: status.cloudOk
                 ? '已同步到云端，换设备也认得你的叫法'
                 : ('暂用本机设置' + (status.error ? ' · ' + status.error : '')),
+            // 把「会删掉别人的东西」这件事写在按钮下面，而不是等 ta 点开才知道。
+            clearHint: active.length
+                ? (app.householdKey
+                    ? '会删掉共享冰箱里全部 ' + active.length + ' 样，包括家人录的'
+                    : '现在冰箱里有 ' + active.length + ' 样')
+                : '冰箱现在是空的',
         });
     },
 
@@ -107,11 +117,12 @@ Page(createAuthMixin({
     },
 
     // 预览将来微信服务通知里会出现的食材叫法。
+    // 推送模板写的是「还有 2 天过期」，已过期的食材不能混进来，否则文案自己打脸。
     onPreviewNotice: async function () {
         const result = await stores.ingredients.list();
-        const rows = (result.error ? [] : (result.data || []))
-            .filter(function (row) { return !row.consumed && util.diffDays(row.expiry_on) <= 2; })
-            .slice(0, 3)
+        const rows = util.expiryBuckets((result.error ? [] : (result.data || []))
+            .filter(function (row) { return !row.consumed; }))
+            .urgent.slice(0, 3)
             .map(function (row) { return foodNames.decorate(row); });
         const demoId = dict.BY_CANONICAL['番茄'];
         const text = subscribe.expiryNoticeText(rows) ||
@@ -129,6 +140,60 @@ Page(createAuthMixin({
         });
         const url = detail.path + (parts.length ? '?' + parts.join('&') : '');
         wx.navigateTo({ url: url, fail: function () { wx.reLaunch({ url: url }); } });
+    },
+
+    // ---------- 冰箱清理 ----------
+    // 全柜清空是不可恢复的，所以「双确认」用输入框做实打实的动作确认：
+    // 弹窗写明影响范围（共享冰箱会连带删掉家人录的），还要手输「清空」两个字。
+    // 只多花三秒，但能挡住「本来想清过期，顺手把整个冰箱清了」。
+    onClearFridge: function () {
+        const count = this.data.stats.foods;
+        if (!count) {
+            util.toast('冰箱已经是空的');
+            return;
+        }
+        const app = getApp();
+        const scope = app && app.householdKey
+            ? '共享冰箱里的 ' + count + ' 样会全部删掉，包括家人录的，'
+            : '冰箱里的 ' + count + ' 样会全部删掉，';
+        const that = this;
+        wx.showModal({
+            title: '清空整个冰箱？',
+            content: scope + '删掉就找不回来了。清完「已吃掉」的统计不会变。',
+            editable: true,
+            placeholderText: '想清楚了就输入：清空',
+            confirmText: '确认清空',
+            confirmColor: '#B4503A',
+            success: function (res) {
+                if (!res.confirm) return;
+                if (String(res.content || '').trim() !== '清空') {
+                    util.toast('没有输入「清空」，这次不动它');
+                    return;
+                }
+                that.clearFridge();
+            },
+        });
+    },
+
+    clearFridge: async function () {
+        wx.showLoading({ title: '正在清空冰箱', mask: true });
+        const result = await stores.ingredients.list();
+        if (result.error) {
+            wx.hideLoading();
+            util.toast(util.errorMessage(result.error, '清空失败，请重试'));
+            return;
+        }
+        // 只清冰箱里看得见的那些：已标记「吃掉了」的行本来就不占版面，
+        // 顺手删掉会让「已吃掉次数」的账对不上，所以留着。
+        const rows = (result.data || []).filter(function (row) { return !row.consumed; });
+        const outcome = await stores.removeEach(stores.ingredients, rows);
+        wx.hideLoading();
+        if (outcome.failed) {
+            util.toast('清掉 ' + outcome.removed + ' 样，还有 ' + outcome.failed + ' 样没删掉，再试一次');
+        } else {
+            util.toast('冰箱空了，' + outcome.removed + ' 样都出去了 🧹');
+        }
+        await this.loadData();
     },
 
     goFamily: function () { wx.reLaunch({ url: '/pages/family/family' }); },
