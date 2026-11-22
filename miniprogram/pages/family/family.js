@@ -34,11 +34,17 @@ function buildMenuFromStock(stockRows, cloudRows) {
         }).length;
         return Object.assign({}, recipe, { urgentHits: hits });
     };
+    // 简版家常菜没有用时（minutes=0），排序时按普通家常菜的 30 分钟算；
+    // 展示层根据有没有分钟数决定写不写，不编造用时。
+    const minutesOf = function (item) {
+        const n = Number(item && item.minutes);
+        return n > 0 ? n : 30;
+    };
     const byPriority = function (a, b) {
         if (b.urgentHits !== a.urgentHits) return b.urgentHits - a.urgentHits;
         if (a.isReady !== b.isReady) return a.isReady ? -1 : 1;
         if (b.matched !== a.matched) return b.matched - a.matched;
-        return a.minutes - b.minutes;
+        return minutesOf(a) - minutesOf(b);
     };
 
     const ready = matched.ready.map(withUrgency).map(function (item) {

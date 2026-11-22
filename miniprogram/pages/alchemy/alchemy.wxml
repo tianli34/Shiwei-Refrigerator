@@ -98,7 +98,7 @@
                             <text class="rank-name">{{item.name}}</text>
                             <text class="rank-cooked" wx:if="{{item.cookCount > 0}}">已做 {{item.cookCount}} 次</text>
                         </view>
-                        <text class="rank-meta">{{item.minutes}} 分钟 · {{item.difficulty}}<text wx:if="{{item.matchedText}}"> · 用到 {{item.matchedText}}</text></text>
+                        <text class="rank-meta" wx:if="{{item.metaText}}">{{item.metaText}}</text>
                         <text class="rank-urgent {{item.hot ? 'rank-urgent-hot' : ''}}" wx:if="{{!showingFallback}}">⏰ {{item.daysText}}<text wx:if="{{item.urgentText}}"> · {{item.urgentText}}</text></text>
                         <text class="rank-approx" wx:if="{{item.approxText}}">🔁 {{item.approxText}}</text>
                         <text class="rank-need" wx:if="{{showingFallback}}">只差 <text class="rank-need-word">{{item.missingText}}</text></text>
@@ -159,7 +159,7 @@
         <view class="sheet-handle"></view>
         <text class="detail-emoji">{{detail.emoji}}</text>
         <text class="sheet-title">{{detail.name}}</text>
-        <text class="sheet-sub">{{detail.minutes}} 分钟 · {{detail.difficulty}}<text wx:if="{{detail.matchedText}}"> · 用到 {{detail.matchedText}}</text></text>
+        <text class="sheet-sub" wx:if="{{detail.metaText}}">{{detail.metaText}}</text>
         <text class="cooked-note" wx:if="{{detail.cookCount > 0}}">这道菜全家已做过 {{detail.cookCount}} 次</text>
         <view class="detail-note" wx:if="{{detail.approxText}}">🔁 {{detail.approxText}}</view>
         <view class="detail-note detail-note-warn" wx:if="{{detail.hintText}}">⚠️ {{detail.hintText}}</view>

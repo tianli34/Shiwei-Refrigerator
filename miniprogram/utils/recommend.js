@@ -65,11 +65,18 @@ function urgencyOf(info, leftMap, days) {
     };
 }
 
+// 简版家常菜源数据没有用时（minutes=0），不能当成「0 分钟」排到最前面；
+// 比较时按一道普通家常菜的 30 分钟算，展示时则整段隐藏。
+function minutesOf(item) {
+    const n = Number(item && item.minutes);
+    return n > 0 ? n : 30;
+}
+
 function byUrgency(a, b) {
     if (a.minLeft !== b.minLeft) return a.minLeft - b.minLeft;
     // 次排序：消耗总样数 —— 同样急的时候，能一次清掉更多食材的菜先上。
     if (a.matchedCount !== b.matchedCount) return b.matchedCount - a.matchedCount;
-    return (a.minutes || 0) - (b.minutes || 0);
+    return minutesOf(a) - minutesOf(b);
 }
 
 function byCook(dir) {
@@ -78,7 +85,7 @@ function byCook(dir) {
         if (a.minLeft !== b.minLeft) return a.minLeft - b.minLeft;
         if (a.urgentCount !== b.urgentCount) return b.urgentCount - a.urgentCount;
         if (a.matchedCount !== b.matchedCount) return b.matchedCount - a.matchedCount;
-        return (a.minutes || 0) - (b.minutes || 0);
+        return minutesOf(a) - minutesOf(b);
     };
 }
 
@@ -95,6 +102,16 @@ function daysText(minLeft) {
     return '还能放 ' + minLeft + ' 天';
 }
 
+// 卡片/详情共用的一行元信息：没有用时/难度就不写，避免「0 分钟 · 」这种空壳。
+function metaTextOf(item) {
+    const parts = [];
+    const minutes = Number(item && item.minutes);
+    if (minutes > 0) parts.push(minutes + ' 分钟');
+    if (item && item.difficulty) parts.push(item.difficulty);
+    if (item && item.matchedText) parts.push('用到 ' + item.matchedText);
+    return parts.join(' · ');
+}
+
 function decorate(item, leftMap, days, index) {
     const hot = item.minLeft !== NO_EXPIRY && item.minLeft <= 2;
     return Object.assign({}, item, {
@@ -103,6 +120,7 @@ function decorate(item, leftMap, days, index) {
         cookCount: item.cookCount || 0,
         daysText: daysText(item.minLeft),
         hot: hot,
+        metaText: metaTextOf(item),
         urgentText: item.urgentCount > 0 ? item.urgentCount + ' 样 ' + days + ' 天内到期' : '',
     });
 }

@@ -1,6 +1,7 @@
 // 内置菜谱库：离线即可做食材反向匹配；云端 recipes 表用于保存 AI 生成的创意菜。
 const dict = require('./food-dict');
 const foodNames = require('./food-names');
+const HOME = require('./home-recipes.data');
 const BUILTIN = [
     { id: 'b1', name: '土豆鸡肉焖饭', emoji: '🍚', mainItems: ['土豆', '鸡胸肉', '米饭'], seasonings: ['生抽', '盐'], minutes: 35, difficulty: '简单', tags: ['一锅端', '剩饭救星'], steps: ['土豆切小块，鸡胸肉切丁用少许生抽抓匀', '米洗净放入电饭煲，加平常水量', '铺上土豆和鸡肉，按下煮饭键', '出锅拌匀，撒一点葱花更香'] },
     { id: 'b2', name: '番茄炒蛋', emoji: '🍅', mainItems: ['番茄', '鸡蛋'], seasonings: ['糖', '盐'], minutes: 10, difficulty: '简单', tags: ['快手', '下饭'], steps: ['鸡蛋打散炒至凝固盛出', '番茄切块炒出汁，加少许糖', '倒回鸡蛋翻匀，加盐出锅'] },
@@ -35,6 +36,18 @@ const BUILTIN = [
 function normalizeName(value) {
     return String(value || '').replace(/[\s（）()【】\[\]]/g, '').toLowerCase();
 }
+
+// 家常菜库（根目录 家常菜4.json 编译）只有菜名和主料。和手写菜谱重名时保留手写版——
+// 它带用时、难度和做法，信息更全；源数据自身万一重名也只留第一道。
+const BUILTIN_NAMES = {};
+BUILTIN.forEach(function (item) { BUILTIN_NAMES[normalizeName(item.name)] = true; });
+const HOME_RECIPES = HOME.filter(function (item) {
+    const key = normalizeName(item.name);
+    if (!key || BUILTIN_NAMES[key]) return false;
+    BUILTIN_NAMES[key] = true;
+    return true;
+});
+const ALL_BUILTIN = BUILTIN.concat(HOME_RECIPES);
 
 // 食材身份一律用 food_id 比较；中文名只负责显示，不再参与相等判断。
 // 兼容三种入参：已有 food_id、词表里的任意叫法、历史数据里的自由文本。
@@ -188,7 +201,7 @@ function allRecipes(cloudRows) {
             ai: true,
         };
     });
-    return BUILTIN.concat(extra);
+    return ALL_BUILTIN.concat(extra);
 }
 
 // 统一菜谱身份：合池里的 'b1'/'c12' 原样返回；收藏页和云端裸行的数字 id 补 'c' 前缀，
@@ -261,7 +274,7 @@ function shelfDaysFor(name, fallback) {
 }
 
 module.exports = {
-    BUILTIN: BUILTIN,
+    BUILTIN: ALL_BUILTIN,
     cloudRecipeItems: cloudRecipeItems,
     allRecipes: allRecipes,
     match: match,
