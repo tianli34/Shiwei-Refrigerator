@@ -38,6 +38,9 @@ const GENERIC_WORDS = [
 const GENERIC_SET = {};
 GENERIC_WORDS.forEach(function (word) { GENERIC_SET[word] = true; });
 
+// 模糊命中至少覆盖较长一方的一半，否则宁可落到自定义食材。
+const MIN_FUZZY_COVERAGE = 0.5;
+
 // 地域词包：写「通用主名 -> 当地叫法」，初始化时反查实体 ID 并校验叫法合法。
 // 词包只影响显示，绝不影响身份；叫法不在该实体别名表里会被自动丢弃。
 const REGION_DEFS = {
@@ -130,13 +133,33 @@ function resolve(value) {
     if (exact && exact.length === 1) return hit(exact[0], raw, key, 'exact');
     if (exact && exact.length > 1) return ambiguous(exact, raw, key);
 
-    const ids = [];
+    // 模糊匹配：先按覆盖率过滤短词，再只保留命中长度最长的一档。
+    // 覆盖率按较长一方计算，避免长词里只命中两个字就被短词带走。
+    const matches = [];
     Object.keys(BY_WORD).forEach(function (word) {
         if (word.length < 2 || GENERIC_SET[word]) return;
-        if (key.indexOf(word) < 0 && !(word.length >= 3 && word.indexOf(key) >= 0)) return;
+        let matched = 0;
+        if (key.indexOf(word) >= 0) {
+            matched = word.length;
+        } else if (word.length >= 3 && word.indexOf(key) >= 0) {
+            matched = key.length;
+        } else {
+            return;
+        }
+        const coverage = matched / Math.max(key.length, word.length);
+        if (coverage < MIN_FUZZY_COVERAGE) return;
         BY_WORD[word].forEach(function (id) {
-            if (ids.indexOf(id) < 0) ids.push(id);
+            matches.push({ id: id, length: matched });
         });
+    });
+    let longest = 0;
+    matches.forEach(function (item) {
+        if (item.length > longest) longest = item.length;
+    });
+    const ids = [];
+    matches.forEach(function (item) {
+        if (item.length !== longest) return;
+        if (ids.indexOf(item.id) < 0) ids.push(item.id);
     });
     if (ids.length === 1) return hit(ids[0], raw, key, 'fuzzy');
     if (ids.length > 1) return ambiguous(ids, raw, key);

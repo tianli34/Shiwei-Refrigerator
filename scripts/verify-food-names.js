@@ -71,6 +71,24 @@ async function main() {
     assert.notStrictEqual(tomato, potato, '不同实体不能合并');
     assert.strictEqual(dict.resolve('番瓜').status, 'ambiguous', '番瓜应触发歧义确认');
     assert.strictEqual(dict.resolve('custom:洋山芋').id, 'custom:洋山芋', '自定义身份应稳定复用');
+    assert.strictEqual(dict.resolve('测试用小米').status, 'custom', '短词覆盖率不足时不应硬猜');
+    assert.strictEqual(dict.resolve('测试豆腐').canonical, '豆腐', '覆盖率过半仍可按模糊归一');
+    assert.strictEqual(dict.resolve('美白').status, 'custom', '反向包含也要受覆盖率约束');
+    assert.strictEqual(dict.resolve('猪里脊肉').canonical, '猪里脊', '正常的长词仍应归一');
+    assert.notStrictEqual(dict.resolveId('鳙鱼'), dict.resolveId('鲢鱼'), '鳙鱼 / 鲢鱼不能合并');
+    assert.strictEqual(dict.resolve('小米椒').canonical, '小米辣', '小米椒应归到小米辣');
+    assert.strictEqual(dict.resolve('鳙鱼头').canonical, '鳙鱼头', '鳙鱼头不应落到鲢鱼');
+
+    const testMallet = dict.resolveId('小米');
+    const testTofu = dict.resolveId('豆腐');
+    dict.BY_WORD['测试长'] = [testMallet];
+    dict.BY_WORD['长词'] = [testTofu];
+    try {
+        assert.strictEqual(dict.resolve('测试长词').canonical, '小米', '模糊匹配应优先最长命中');
+    } finally {
+        delete dict.BY_WORD['测试长'];
+        delete dict.BY_WORD['长词'];
+    }
     assert.strictEqual(recipes.hasIngredient(['西红柿'], '番茄'), true, '菜谱匹配应按身份相等');
     assert.strictEqual(recipes.hasIngredient(['番茄'], '土豆'), false, '不同食材不应模糊命中');
 

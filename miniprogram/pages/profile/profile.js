@@ -159,7 +159,7 @@ Page(createAuthMixin({
         const that = this;
         wx.showModal({
             title: '清空整个冰箱？',
-            content: scope + '删掉就找不回来了。清完「已吃掉」的统计不会变。',
+            content: scope + '删掉就找不回来了，这些批次的「已消耗」次数也不会再显示。',
             editable: true,
             placeholderText: '想清楚了就输入：清空',
             confirmText: '确认清空',
@@ -183,8 +183,7 @@ Page(createAuthMixin({
             util.toast(util.errorMessage(result.error, '清空失败，请重试'));
             return;
         }
-        // 只清冰箱里看得见的那些：已标记「吃掉了」的行本来就不占版面，
-        // 顺手删掉会让「已吃掉次数」的账对不上，所以留着。
+        // 只清冰箱里看得见的那些：已标记「吃掉了」的行本来就不占版面，留着不动。
         const rows = (result.data || []).filter(function (row) { return !row.consumed; });
         const outcome = await stores.removeEach(stores.ingredients, rows);
         wx.hideLoading();

@@ -188,10 +188,14 @@ Page(createAuthMixin({
             util.toast(util.errorMessage(counted.error, '次数没记上，再试一次'));
             return;
         }
-        // 食材消耗次数只记真正下锅的那几样：explain 的 used 已经处理过「五花肉代猪肉」。
+        // 消耗次数记到具体批次上：每样主料取最早到期的那行，和确认条里列的是同一批。
+        // explain 的 used 已经处理过「五花肉代猪肉」。
         const usedIds = recipe.used || [];
-        for (const foodId of usedIds) {
-            await stores.bumpConsumedCount(foodId, 1);
+        const barItems = this.barItemsOf(usedIds);
+        const countedIds = [];
+        for (const item of barItems) {
+            const bumped = await stores.bumpBatchConsumed(item.id, 1);
+            if (!bumped.error) countedIds.push(item.id);
         }
         this.cookingKey = null;
         this.locked[key] = Date.now() + LOCK_MS;
@@ -199,7 +203,7 @@ Page(createAuthMixin({
         this.patchCookCount(key, this.cookCounts[key]);
         this.flashCooked(key);
 
-        this.barUsed = usedIds;
+        this.barBatches = countedIds;
         this.barKey = key;
         this.setData({
             // 详情弹层让位给底部确认条，不然两个浮层会叠在一起。
@@ -208,7 +212,7 @@ Page(createAuthMixin({
                 key: key,
                 name: recipe.name,
                 emoji: recipe.emoji,
-                items: this.barItemsOf(usedIds),
+                items: barItems,
             },
         });
     },
@@ -245,8 +249,8 @@ Page(createAuthMixin({
         if (this.undoing) return;
         this.undoing = true;
         await stores.bumpCookCount(bar.key, -1);
-        for (const foodId of (this.barUsed || [])) {
-            await stores.bumpConsumedCount(foodId, -1);
+        for (const id of (this.barBatches || [])) {
+            await stores.bumpBatchConsumed(id, -1);
         }
         this.undoing = false;
         this.cookCounts[bar.key] = Math.max(0, (Number(this.cookCounts[bar.key]) || 1) - 1);
@@ -266,7 +270,15 @@ Page(createAuthMixin({
             if (!id || seen[id]) return;
             seen[id] = true;
             const row = rows.filter(function (item) { return item.food_id === id; }).sort(function (a, b) {
-                return a.leftDays - b.leftDays;
+                if (a.leftDays !== b.leftDays) return a.leftDays - b.leftDays;
+                // 临期相同就按「先买先吃」：录入日期早的优先，再比创建时间，最后用 id 兜底。
+                const addedA = String(a.added_on || a.created_at || '');
+                const addedB = String(b.added_on || b.created_at || '');
+                if (addedA !== addedB) return addedA < addedB ? -1 : 1;
+                const createdA = String(a.created_at || '');
+                const createdB = String(b.created_at || '');
+                if (createdA !== createdB) return createdA < createdB ? -1 : 1;
+                return String(a.id) < String(b.id) ? -1 : (String(a.id) > String(b.id) ? 1 : 0);
             })[0];
             if (!row) return;
             out.push({

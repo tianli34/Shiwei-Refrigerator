@@ -48,8 +48,10 @@ const recipeCookCounts = createTableAccess(cloud, {
     orderBy: { column: 'created_at', ascending: false },
 });
 
-// 食材消耗次数：一行 = 一个家庭里的一样食材，按归一后的 food_id 累计（五花肉与猪肉分开计）。
-// 结构与 recipe_cook_counts 同构；本轮只读不写，UNIQUE(household_key, food_id) 为后续原子自增铺路。
+// 食材消耗次数：一行 = 一个家庭里的一批食材（ingredients 的一行），不是按食材种类累计。
+// 沿用旧表的 food_id 列存放批次键 'ing:<ingredients.id>'，与历史种类键（如 'pork'）天然区分，
+// 这样批次被删除后新批次从 0 开始，不需要改云端表结构。旧种类键不再读取。
+const BATCH_COUNT_PREFIX = 'ing:';
 const ingredientConsumedCounts = createTableAccess(cloud, {
     table: 'ingredient_consumed_counts',
     columns: ['id', 'owner_id', 'owner_name', 'household_key', 'food_id', 'consumed_count', 'created_at'],
@@ -130,19 +132,21 @@ async function cookCountMap() {
     return map;
 }
 
-// 食材消耗次数一次拉全，键是 food_id：食物名会随叫法偏好变，只有 food_id 是稳定身份。
+// 批次消耗次数一次拉全，键是 ingredients.id：每批食材各记各的，新买的从 0 开始。
 // 读失败同样返回空字典让卡片照常渲染，warn 用于区分「表没建好」与「确实没消耗过」。
-async function consumedCountMap() {
+async function batchConsumedCountMap() {
     const result = await ingredientConsumedCounts.list();
     const map = {};
     if (!result || result.error) {
-        if (result && result.error) console.warn('[consumedCountMap] 食材消耗次数读取失败：', result.error);
+        if (result && result.error) console.warn('[batchConsumedCountMap] 食材消耗次数读取失败：', result.error);
         return map;
     }
     (result.data || []).forEach(function (row) {
-        if (!row || !row.food_id) return;
+        if (!row || typeof row.food_id !== 'string' || row.food_id.indexOf(BATCH_COUNT_PREFIX) !== 0) return;
+        const id = row.food_id.slice(BATCH_COUNT_PREFIX.length);
+        if (!id) return;
         const n = Number(row.consumed_count);
-        map[row.food_id] = Number.isFinite(n) && n > 0 ? n : 0;
+        map[id] = Number.isFinite(n) && n > 0 ? n : 0;
     });
     return map;
 }
@@ -197,9 +201,10 @@ function bumpCookCount(recipeKey, delta) {
     return bumpCount(recipeCookCounts, 'recipe_key', 'cook_count', recipeKey, delta);
 }
 
-// 一样食材被消耗一次：键是归一后的 food_id，五花肉与猪肉各记各的。
-function bumpConsumedCount(foodId, delta) {
-    return bumpCount(ingredientConsumedCounts, 'food_id', 'consumed_count', foodId, delta);
+// 一批食材被消耗一次：键是 ingredients.id，换一批就重新从 0 开始。
+function bumpBatchConsumed(ingredientId, delta) {
+    const id = String(ingredientId == null ? '' : ingredientId).trim();
+    return bumpCount(ingredientConsumedCounts, 'food_id', 'consumed_count', id ? BATCH_COUNT_PREFIX + id : '', delta);
 }
 
 // 批量删除：数据访问层与云端都只有「按 id 删一条」，没有批量入口，
@@ -268,9 +273,9 @@ module.exports = {
     householdScope: householdScope,
     ownerName: ownerName,
     cookCountMap: cookCountMap,
-    consumedCountMap: consumedCountMap,
+    batchConsumedCountMap: batchConsumedCountMap,
     bumpCookCount: bumpCookCount,
-    bumpConsumedCount: bumpConsumedCount,
+    bumpBatchConsumed: bumpBatchConsumed,
     removeEach: removeEach,
     findHouseholdByCode: findHouseholdByCode,
     findShareByCode: findShareByCode,

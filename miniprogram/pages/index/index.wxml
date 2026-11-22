@@ -268,10 +268,10 @@
 
         <!-- 小票 OCR -->
         <block wx:else>
-            <view class="receipt-box" bindtap="chooseReceipt">
+            <view class="receipt-box {{receiptBusy ? 'receipt-busy' : ''}}" wx:if="{{!parsedFoods.length}}" bindtap="chooseReceipt">
                 <text class="receipt-emoji">🧾</text>
                 <text class="receipt-title">{{receiptBusy ? '正在识别小票…' : '拍一张超市小票'}}</text>
-                <text class="receipt-sub">也可以从相册里选一张</text>
+                <text class="receipt-sub" wx:if="{{!receiptBusy}}">也可以从相册里选一张</text>
             </view>
             <text class="sheet-sub" style="margin-top:16rpx" wx:if="{{parseNote}}">{{parseNote}}</text>
         </block>

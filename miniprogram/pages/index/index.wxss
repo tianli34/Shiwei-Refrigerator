@@ -622,6 +622,8 @@
 }
 
 .receipt-box {
+    position: relative;
+    overflow: hidden;
     margin-top: 28rpx;
     padding: 48rpx 20rpx;
     text-align: center;
@@ -633,6 +635,37 @@
 .receipt-emoji { display: block; font-size: 76rpx; }
 .receipt-title { display: block; margin-top: 16rpx; font-size: 30rpx; font-weight: 700; }
 .receipt-sub { display: block; margin-top: 8rpx; font-size: 23rpx; color: #A69C8B; }
+
+/* 识别中：小票图轻轻浮动、文案呼吸、虚线框内一道扫描光带 */
+.receipt-busy .receipt-emoji { animation: receipt-float 1.5s ease-in-out infinite; }
+.receipt-busy .receipt-title { animation: receipt-breath 1.5s ease-in-out infinite; }
+
+.receipt-busy::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 0;
+    height: 48rpx;
+    background: linear-gradient(180deg, rgba(127, 176, 105, 0) 0%, rgba(127, 176, 105, 0.16) 55%, rgba(127, 176, 105, 0) 100%);
+    animation: receipt-scan 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes receipt-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10rpx) scale(1.05); }
+}
+
+@keyframes receipt-breath {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+@keyframes receipt-scan {
+    0% { top: -48rpx; }
+    100% { top: 100%; }
+}
 
 .parsed-list { margin-top: 4rpx; }
 

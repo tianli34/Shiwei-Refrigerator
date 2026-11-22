@@ -114,10 +114,10 @@ Page(createAuthMixin({
 
     loadData: async function () {
         this.setData({ viewState: 'loading' });
-        // 消耗次数是纯展示态：并行拉，读失败退化成全 0，绝不阻塞冰箱主流程。
-        const results = await Promise.all([stores.ingredients.list(), stores.consumedCountMap()]);
+        // 批次消耗次数是纯展示态：并行拉，读失败退化成全 0，绝不阻塞冰箱主流程。
+        const results = await Promise.all([stores.ingredients.list(), stores.batchConsumedCountMap()]);
         const result = results[0];
-        const counts = results[1] || {};
+        const batchCounts = results[1] || {};
         if (result.error) {
             this.setData({ viewState: 'error' });
             util.toast(util.errorMessage(result.error, '食材加载失败'));
@@ -127,15 +127,15 @@ Page(createAuthMixin({
         // 历史行没有 food_id 时 decorate 会用名称兜底归一，不影响旧数据展示。
         const decorated = rows.map(function (row) {
             const item = foodNames.decorate(row);
-            // 计数键必须用 decorate 归一后的 food_id：食物名叫法会变，只有身份稳定。
-            const n = Number(counts[item.food_id]);
+            // 计数键是具体批次（ingredients.id）：同一食材的不同批次各记各的。
+            const n = Number(batchCounts[String(item.id)]);
             const count = Number.isFinite(n) && n > 0 ? n : 0;
             return Object.assign(item, {
                 fresh: util.freshness(row),
                 qtyKind: quantity.kindOf(row.quantity),
                 consumedCount: count,
                 // 0 次不占版面：刚上线时满屏「0 次」比不显示更像坏了。
-                consumedLabel: count > 0 ? ('已吃掉 ' + count + ' 次') : '',
+                consumedLabel: count > 0 ? ('已消耗 ' + count + ' 次') : '',
             });
         });
         const reminderOn = wx.getStorageSync('reminder_on') !== false;
@@ -540,6 +540,7 @@ Page(createAuthMixin({
 
     chooseReceipt: function () {
         const that = this;
+        if (this.data.receiptBusy) return;
         if (typeof wx.chooseMedia !== 'function') {
             util.toast('当前环境不支持拍照，换个录入方式吧');
             return;
@@ -551,7 +552,7 @@ Page(createAuthMixin({
             success: async function (res) {
                 const file = res.tempFiles && res.tempFiles[0];
                 if (!file) return;
-                that.setData({ receiptBusy: true, parseNote: '正在看小票…', parsedFoods: [] });
+                that.setData({ receiptBusy: true, parseNote: '', parsedFoods: [] });
                 try {
                     const base64 = await readBase64(file.tempFilePath);
                     const mime = file.fileType === 'image' ? 'image/jpeg' : 'image/jpeg';
@@ -563,7 +564,7 @@ Page(createAuthMixin({
                     that.setData({
                         receiptBusy: false,
                         parsedFoods: that.decorateParsed(foods),
-                        parseNote: '识别完成，勾掉不要的再加进冰箱 👇',
+                        parseNote: '识别完成，认错的点 × 删掉，再一起放进冰箱 👇',
                     });
                 } catch (error) {
                     that.setData({ receiptBusy: false, parseNote: '小票识别暂时不可用，请用「点一点」或「说一句」录入。' });
