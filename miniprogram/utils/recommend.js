@@ -196,9 +196,12 @@ function profile(rows, days) {
 }
 
 // 展开 / 收起的按钮配额：≤5 不给按钮；6~10 只给「显示全部」；>10 两个都给。
+// 没传 / 传了非法值一律按「全展开」算 —— 少传一个参数最多是多显示几道，
+// 不能像以前那样把 visible 兜成 0，把列表清空。
 function pager(total, visible) {
     const count = Math.max(0, Number(total) || 0);
-    const shown = Math.max(0, Math.min(Number(visible) || 0, count));
+    const asked = (visible === undefined || visible === null || visible === '') ? count : Number(visible);
+    const shown = Number.isFinite(asked) ? Math.max(0, Math.min(asked, count)) : count;
     return {
         count: count,
         visible: shown,

@@ -146,7 +146,11 @@ Page(createAuthMixin({
     },
 
     onShowTen: function () { this.applyView(10); },
-    onShowAll: function () { this.applyView(this.listTotal); },
+    // 注意：总数在 this.data 里，不是 this.listTotal；取当前列表长度最稳（兜底列表和推荐列表长度不同）。
+    onShowAll: function () {
+        const list = this.showingFallback ? (this.missingAll || []) : (this.readyAll || []);
+        this.applyView(list.length);
+    },
     onCollapse: function () { this.applyView(PAGE_STEP); },
 
     // ---------- 菜谱详情 ----------

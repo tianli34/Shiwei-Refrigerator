@@ -149,6 +149,13 @@ function main() {
     assert.strictEqual(p12c.showAll, false, '全展开了就不再有「显示全部」');
     assert.strictEqual(p12c.showCollapse, true, '展开后给「收起」');
 
+    // 回归：漏传 visible 不能让列表清空（曾经点「显示全部 6 道」变成一道都不显示）
+    const p8All = rec.pager(8, undefined);
+    assert.strictEqual(p8All.visible, 8, '没传 visible 时按全展开算，不能兜成 0');
+    assert.strictEqual(p8All.showAll, false, '全展开了就不再给「显示全部」');
+    assert.strictEqual(p8All.showCollapse, true, '全展开了给「收起」');
+    assert.strictEqual(rec.pager(8, 'abc').visible, 8, 'visible 不是数字也按全展开算');
+
     // 顶部那行统计：同一样食材记了多行只算一样，临期取最早到期的那行
     const prof = rec.profile([row('番茄', 1), row('土豆', 3), row('鸡蛋', 12), row('鸡蛋', 2), row('西兰花', 20)], 10);
     assert.strictEqual(prof.total, 4, '鸡蛋记了两行仍然只算 1 样');
