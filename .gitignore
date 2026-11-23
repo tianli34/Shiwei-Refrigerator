@@ -3,6 +3,9 @@ node_modules/
 miniprogram_npm/
 **/node_modules/
 
+# 构建产物
+dist/
+
 # 微信开发者工具本地私有配置
 project.private.config.json
 .idea/

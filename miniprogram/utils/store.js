@@ -7,9 +7,6 @@ const COMMON = ['owner_name', 'household_key'];
 const INGREDIENT_FIELDS = COMMON.concat(['name', 'food_id', 'raw_name', 'emoji', 'zone', 'quantity', 'shelf_days', 'added_on', 'expiry_on', 'note', 'consumed']);
 const SHOPPING_FIELDS = COMMON.concat(['name', 'food_id', 'raw_name', 'emoji', 'quantity', 'from_recipe', 'done']);
 const RECIPE_FIELDS = COMMON.concat(['name', 'emoji', 'main_items', 'seasonings', 'steps', 'minutes', 'difficulty', 'tags', 'source']);
-const SHARE_FIELDS = COMMON.concat(['title', 'share_code', 'recipe_ids', 'status']);
-const HOUSEHOLD_FIELDS = ['owner_name', 'name', 'invite_code'];
-const MEMBER_FIELDS = ['owner_name', 'household_key', 'role'];
 const PREF_FIELDS = COMMON.concat(['food_id', 'preferred_name', 'pref_scope', 'pref_source', 'updated_at']);
 const SETTING_FIELDS = COMMON.concat(['region', 'household_unified', 'updated_at']);
 // 做菜次数：写入白名单。owner_id 由服务端 DEFAULT + RLS 决定，绝不进白名单。
@@ -59,28 +56,7 @@ const ingredientConsumedCounts = createTableAccess(cloud, {
     orderBy: { column: 'created_at', ascending: false },
 });
 
-const shares = createTableAccess(cloud, {
-    table: 'menu_shares',
-    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'title', 'share_code', 'recipe_ids', 'status', 'created_at'],
-    toRow: function (row) { return pick(row, SHARE_FIELDS); },
-    orderBy: { column: 'created_at', ascending: false },
-});
-
-const households = createTableAccess(cloud, {
-    table: 'households',
-    columns: ['id', 'owner_id', 'owner_name', 'name', 'invite_code', 'created_at'],
-    toRow: function (row) { return pick(row, HOUSEHOLD_FIELDS); },
-    orderBy: { column: 'created_at', ascending: false },
-});
-
-const members = createTableAccess(cloud, {
-    table: 'household_members',
-    columns: ['id', 'owner_id', 'owner_name', 'household_key', 'role', 'created_at'],
-    toRow: function (row) { return pick(row, MEMBER_FIELDS); },
-    orderBy: { column: 'created_at', ascending: false },
-});
-
-// 叫法偏好：personal 行只对本人生效，household 行对同一个共享冰箱的成员生效。
+// 叫法偏好：personal 行只对本人生效，household 行对同一作用域的成员生效。
 const foodNamePrefs = createTableAccess(cloud, {
     table: 'food_name_prefs',
     columns: ['id', 'owner_id', 'owner_name', 'household_key', 'food_id', 'preferred_name', 'pref_scope', 'pref_source', 'updated_at', 'created_at'],
@@ -105,7 +81,7 @@ function scopeKey() {
     return (app && app.householdKey) || '';
 }
 
-// 写入时统一附带当前共享冰箱作用域与昵称快照；owner_id 由服务端 DEFAULT + RLS 决定，绝不从前端传。
+// 写入时统一附带当前作用域与昵称快照；owner_id 由服务端 DEFAULT + RLS 决定，绝不从前端传。
 function scope(payload) {
     return Object.assign({}, payload, { household_key: scopeKey(), owner_name: ownerName() });
 }
@@ -151,7 +127,7 @@ async function batchConsumedCountMap() {
     return map;
 }
 
-// 计数表统一的自增 / 自减：一行 = 一个作用域（共享冰箱，或本人的独立冰箱）里的一道菜 / 一样食材。
+// 计数表统一的自增 / 自减：一行 = 一个作用域（多人共用的，或本人独立的）里的一道菜 / 一样食材。
 // 没有计数行就先建一行；建的时候撞上唯一键（并发下别的成员刚建过），就重读一次改成加减。
 // 前端只能写绝对值，所以「先读后写」：同一家庭的极端并发可能少记一次，
 // 但绝不会写成负数 —— 这里 clamp 一次，表上的 CHECK(>=0) 再兜一层。
@@ -235,36 +211,10 @@ async function removeEach(table, rows) {
     return { removed: removed, failed: failed };
 }
 
-async function findHouseholdByCode(code) {
-    const result = await cloud.database.from('households').select('id, name, invite_code, owner_id').eq('invite_code', String(code || '').trim().toUpperCase()).limit(1);
-    if (result.error) return { data: null, error: result.error };
-    return { data: (safeArray(result.data)[0] || null), error: null };
-}
-
-async function findShareByCode(code) {
-    const result = await cloud.database.from('menu_shares').select('*').eq('share_code', String(code || '').trim().toUpperCase()).limit(1);
-    if (result.error) return { data: null, error: result.error };
-    return { data: (safeArray(result.data)[0] || null), error: null };
-}
-
-async function listVotes(code) {
-    const result = await cloud.database.from('menu_votes').select('id, share_code, recipe_id, recipe_name, guest_name, created_at').eq('share_code', String(code || '').trim().toUpperCase()).order('created_at', { ascending: false });
-    return { data: safeArray(result.data), error: result.error || null };
-}
-
-async function addVote(payload) {
-    const row = pick(payload, ['share_code', 'recipe_id', 'recipe_name', 'guest_name']);
-    const result = await cloud.database.from('menu_votes').insert(row).select();
-    return { data: safeArray(result.data)[0] || null, error: result.error || null };
-}
-
 module.exports = {
     ingredients: ingredients,
     shopping: shopping,
     recipes: recipes,
-    shares: shares,
-    households: households,
-    members: members,
     foodNamePrefs: foodNamePrefs,
     foodNameSettings: foodNameSettings,
     recipeCookCounts: recipeCookCounts,
@@ -277,8 +227,4 @@ module.exports = {
     bumpCookCount: bumpCookCount,
     bumpBatchConsumed: bumpBatchConsumed,
     removeEach: removeEach,
-    findHouseholdByCode: findHouseholdByCode,
-    findShareByCode: findShareByCode,
-    listVotes: listVotes,
-    addVote: addVote,
 };

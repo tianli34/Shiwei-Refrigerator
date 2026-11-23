@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "今日推荐菜",
+  "usingComponents": {
+    "login-panel": "../../../components/login-panel/login-panel",
+    "tab-bar": "../../../components/tab-bar/tab-bar",
+    "qty-sheet": "../../../components/qty-sheet/qty-sheet"
+  }
+}

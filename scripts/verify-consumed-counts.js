@@ -126,7 +126,7 @@ async function testBatchCountMap() {
 
 // ---- 冰箱卡片装配：用页面桩跑 loadData，确认徽章文案与 legacy 行兜底 ----
 const pageStubs = {
-    '../../utils/auth': {
+    '../../../utils/auth': {
         createAuthMixin: function (options) {
             return Object.assign({}, options, {
                 onShow: function () {}, restore: function () {}, onSignedIn: function () {},
@@ -134,7 +134,7 @@ const pageStubs = {
             });
         },
     },
-    '../../utils/store': {
+    '../../../utils/store': {
         ingredients: {
             list: async function () {
                 return {
@@ -166,7 +166,7 @@ const pageStubs = {
             return { data: 1, error: null };
         },
     },
-    '../../utils/recommend': {
+    '../../../utils/recommend': {
         DAYS_MIN: 3,
         DAYS_MAX: 30,
         DAYS_DEFAULT: 10,
@@ -183,26 +183,26 @@ const pageStubs = {
             return { count: total, visible: total, showTen: false, showAll: false, showCollapse: false };
         },
     },
-    '../../utils/recipes': {},
-    '../../utils/ai': {},
-    '../../utils/food-dict': {
+    '../../../utils/recipes': {},
+    '../../../utils/ai': {},
+    '../../../utils/food-dict': {
         resolve: function () { return {}; },
         meta: function () { return {}; },
         canonicalOf: function (id) { return id; },
         resolveId: function (name) { return name === '牛奶' ? 'milk' : ''; },
     },
-    '../../utils/food-names': {
+    '../../../utils/food-names': {
         decorate: function (row) {
-            const id = row.food_id || (pageStubs['../../utils/food-dict'].resolveId(row.name) || ('custom:' + row.name));
+            const id = row.food_id || (pageStubs['../../../utils/food-dict'].resolveId(row.name) || ('custom:' + row.name));
             return Object.assign({}, row, { food_id: id, display: row.name, canonical: row.name });
         },
         decorateList: function (rows) {
-            return (rows || []).map(pageStubs['../../utils/food-names'].decorate);
+            return (rows || []).map(pageStubs['../../../utils/food-names'].decorate);
         },
         labelOf: function (name) { return name; },
         displayName: function () { return ''; },
     },
-    '../../utils/subscribe': {
+    '../../../utils/subscribe': {
         expiringNamesText: function () { return ''; },
         alertCopy: function () { return { title: '', tip: '', tone: '' }; },
     },
@@ -216,7 +216,7 @@ function loadPage(pagePath) {
         if (Object.prototype.hasOwnProperty.call(pageStubs, request)) return pageStubs[request];
         return original.apply(this, arguments);
     };
-    const fullPath = path.join(root, 'pages', pagePath);
+    const fullPath = path.join(root, 'pages', 'core', pagePath);
     // 同一个页面测两次时要重新执行 Page()，否则 require 缓存会把 options 留空。
     delete require.cache[require.resolve(fullPath)];
     require(fullPath);
@@ -245,7 +245,7 @@ async function testCardBadge() {
     assert.strictEqual(page.data.viewState, 'ready');
 
     // 徽章模板与样式是这条链路的落点，删掉等于功能消失，锁死关键字。
-    const wxml = fs.readFileSync(path.join(root, 'pages', 'index', 'index.wxml'), 'utf8');
+    const wxml = fs.readFileSync(path.join(root, 'pages', 'core', 'index', 'index.wxml'), 'utf8');
     assert.ok(wxml.indexOf('food-consumed') >= 0, 'index.wxml 必须渲染消耗徽章');
     assert.ok(wxml.indexOf('item.consumedLabel') >= 0, '徽章文案由页面装配，不在模板里拼数字');
     assert.ok(
@@ -254,7 +254,7 @@ async function testCardBadge() {
         }),
         '0 次必须整枚徽章不渲染'
     );
-    const wxss = fs.readFileSync(path.join(root, 'pages', 'index', 'index.wxss'), 'utf8');
+    const wxss = fs.readFileSync(path.join(root, 'pages', 'core', 'index', 'index.wxss'), 'utf8');
     assert.ok(wxss.indexOf('.food-consumed') >= 0, '次数徽章要有自己的样式');
 }
 
@@ -290,7 +290,7 @@ async function testBatchBumpOnCook() {
 // ---- 临期相同时按先买先算：added_on 早的批次优先，不依赖列表顺序 ----
 async function testSameExpiryBatchOrder() {
     bumpCalls.length = 0;
-    const storeStub = pageStubs['../../utils/store'];
+    const storeStub = pageStubs['../../../utils/store'];
     const originalList = storeStub.ingredients.list;
     storeStub.ingredients.list = async function () {
         return {

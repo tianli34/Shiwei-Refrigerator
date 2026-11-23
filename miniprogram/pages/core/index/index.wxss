@@ -1,0 +1,850 @@
+/* ---------- 开门 ----------
+   门板是 fixed 的一层，盖住整页；下面就是真实库存页，不是另做一个「开屏页」。
+   所以门只要 opacity 归零、撤掉这层 view，露出来的就是用户要看的冰箱。 */
+.door-scene {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    perspective: 1800rpx;
+    pointer-events: none;
+}
+
+/* 顶光：门一转开就亮，最后跟门一起收掉，不留一层黄罩子在页面上 */
+.scene-lamp {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    opacity: 0;
+    background: radial-gradient(ellipse at 50% 4%, rgba(255, 242, 186, 0.9), rgba(255, 242, 186, 0) 62%);
+}
+
+.scene-mist {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 34%;
+    opacity: 0;
+    background: radial-gradient(ellipse at 48% 94%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 68%);
+}
+
+/* 右侧门轴，正角度 rotateY 让左边的把手朝用户拉出来 */
+.door-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    transform-origin: 100% 50%;
+    backface-visibility: hidden;
+    background:
+        linear-gradient(90deg, rgba(120, 104, 70, 0.1) 0, rgba(120, 104, 70, 0) 7%),
+        linear-gradient(105deg, #F9F5E8 0%, #F0E8D4 48%, #E3D8BE 100%);
+    box-shadow: inset 20rpx 0 44rpx rgba(122, 106, 72, 0.07), inset -8rpx 0 26rpx rgba(122, 106, 72, 0.05);
+}
+
+/* 门板正面压出来的一圈内框，让整块门有厚度，不像一张纯色纸 */
+.door-panel::after {
+    content: '';
+    position: absolute;
+    left: 28rpx;
+    right: 28rpx;
+    top: 64rpx;
+    bottom: 64rpx;
+    border-radius: 24rpx;
+    box-shadow: inset 0 0 0 3rpx rgba(150, 134, 98, 0.13);
+}
+
+.door-handle {
+    position: absolute;
+    left: 56rpx;
+    top: 38%;
+    width: 20rpx;
+    height: 184rpx;
+    border-radius: 999rpx;
+    background: linear-gradient(180deg, #CCC0A0 0%, #AFA27C 100%);
+    box-shadow: 3rpx 4rpx 14rpx rgba(92, 80, 52, 0.22);
+}
+
+/* 冰箱贴：门关着的时候唯一会说话的东西 */
+.door-magnet {
+    position: absolute;
+    left: 104rpx;
+    top: 168rpx;
+    padding: 16rpx 26rpx;
+    border-radius: 16rpx;
+    background: #FFF3C9;
+    color: #8A6C25;
+    font-size: 24rpx;
+    letter-spacing: 1rpx;
+    transform: rotate(-4deg);
+    box-shadow: 0 8rpx 18rpx rgba(140, 120, 80, 0.14);
+}
+
+/* 门上的品牌压字：不是贴纸，是门板压铸出来的字。
+   所以不用底色、不用描边，只靠「上沿一道暗影 + 下沿一道高光」做出凹进去的厚度，
+   颜色比门板深半档，远看是金属铭牌，近看还是这扇奶油色的门。
+   位置放在右上：左侧留给把手和冰箱贴，两边各占一头，门才不显得偏。
+   它贴着门轴（transform-origin 在右边），转门时不会被甩出画面，
+   因此不像冰箱贴那样单独淡出，跟着门一起淡就行。 */
+.door-logo {
+    position: absolute;
+    right: 104rpx;
+    top: 172rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* 中文是主标，英文是副标：只靠字号和透明度分层，不加分割线 ——
+   门是奶油色大面，多一条线就多一道杂音。 */
+.door-logo-cn {
+    font-size: 44rpx;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 9rpx;
+    /* 字距会落在最后一个字后面，把这一格补回去，右边缘才是真的对齐 */
+    margin-right: -9rpx;
+    color: #9E8B6A;
+    text-shadow:
+        0 1rpx 0 rgba(255, 253, 244, 1),
+        0 -1rpx 1rpx rgba(90, 76, 44, 0.32);
+}
+
+.door-logo-en {
+    margin-top: 12rpx;
+    margin-right: -6rpx;
+    font-size: 19rpx;
+    line-height: 1;
+    letter-spacing: 6rpx;
+    color: #A8977A;
+    opacity: 0.9;
+    text-shadow: 0 1rpx 0 rgba(255, 253, 244, 0.9);
+}
+
+/* 门脚那道横线不要了：内框描边已经给了厚度，两条线叠在底部反而像划痕 */
+
+/* 280ms 起转，1200ms 转完到 96°：0~280 静着让人看清这是扇门，然后才动。
+   缓动不用「一出手就到 70°」的强 ease-out —— 门是绕右轴转的，角度一大就只剩一条边，
+   实测那样真正看得见的转动只有 170ms，剩下的时间都在看空气。
+   转动时长是「开门手感」唯一的旋钮：480ms 一晃就没了，700ms 能看清，
+   880ms 像真的拉开一道缝，1200ms 是「慢慢拉、门轴还带点沉」的节奏（用户选定的档）。
+   门全程 pointer-events: none，这段只是给人的，不是给操作的。 */
+.door-scene-play .door-panel {
+    animation: doorSwing 1200ms cubic-bezier(0.34, 0.16, 0.3, 1) 280ms both;
+}
+
+/* 灯光和门一起收（280 + 1560 = 1840），不能让整层撤掉时还剩一层黄罩子 */
+.door-scene-play .scene-lamp {
+    animation: lampGlow 1560ms ease-out 280ms both;
+}
+
+/* 雾在门后侧（z 低于门板），所以它得等门真的开出一道缝才浮出来：
+   起点约在转动的 1/3 处（280 + 0.32 × 1200） */
+.door-scene-play .scene-mist {
+    animation: mistDrift 500ms ease-out 660ms both;
+}
+
+/* 冰箱贴贴得离门轴最远，透视一大就飞到屏幕外；让它跟门一起走，别在画面上飘 */
+.door-scene-play .door-magnet {
+    animation: magnetOut 140ms ease-out 280ms both;
+}
+
+@keyframes doorSwing {
+    from { transform: rotateY(0deg); opacity: 1; }
+    82%  { opacity: 1; }
+    to   { transform: rotateY(96deg); opacity: 0; }
+}
+
+/* 亮起来 → 稳一下 → 在门撤掉之前先退干净，避免整层移除时「啪」地跳一下 */
+@keyframes lampGlow {
+    0%   { opacity: 0; }
+    30%  { opacity: 0.85; }
+    70%  { opacity: 0.55; }
+    100% { opacity: 0; }
+}
+
+@keyframes mistDrift {
+    0%   { opacity: 0; transform: translateY(16rpx); }
+    35%  { opacity: 0.2; }
+    100% { opacity: 0; transform: translateY(-26rpx); }
+}
+
+@keyframes magnetOut {
+    to { opacity: 0; }
+}
+
+/* ---------- 食材回弹 ----------
+   动的是食材本身（真实卡片里的 emoji），不是另摆一排替身；
+   所以开门那一下看到的、弹的、点开的，永远是同一份库存。
+   起点跟着门走：1460ms 门还剩最后一点角度，第一排正好露出来。 */
+.shelf-bounce .food-emoji {
+    transform-origin: 50% 95%;
+    animation: shelfWobble 300ms ease-out 1460ms both;
+}
+
+.shelf-bounce .food-card-urgent .food-emoji,
+.shelf-bounce .food-card-expired .food-emoji {
+    animation-name: shelfRescue;
+    animation-duration: 320ms;
+}
+
+.shelf-bounce .food-card:nth-child(2) .food-emoji { animation-delay: 1480ms; }
+.shelf-bounce .food-card:nth-child(3) .food-emoji { animation-delay: 1500ms; }
+
+/* 起跳 → 落地压扁 → 第二跳振幅减半，这点「果冻感」靠关键帧就够了，
+   不需要运行时模拟弹簧，也不用逐帧 setData */
+@keyframes shelfWobble {
+    0%, 100% { transform: none; }
+    28% { transform: translateY(-6rpx) rotate(-3deg); }
+    62% { transform: rotate(2deg) scale(1.02, 0.98); }
+}
+
+@keyframes shelfRescue {
+    0%, 100% { transform: none; }
+    22% { transform: translateY(-18rpx) rotate(-5deg); }
+    43% { transform: scale(1.07, 0.93); }
+    65% { transform: translateY(-10rpx) rotate(3deg); }
+    83% { transform: scale(1.03, 0.97); }
+}
+
+.head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 34rpx 4rpx 22rpx;
+}
+
+.head-title {
+    display: block;
+    font-size: 38rpx;
+    font-weight: 800;
+}
+
+.head-sub {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 23rpx;
+    color: #9C9284;
+}
+
+.head-count {
+    padding: 10rpx 24rpx;
+    border-radius: 999rpx;
+    background: #FFF0BE;
+    color: #8A6C25;
+    font-size: 24rpx;
+    font-weight: 700;
+}
+
+.alert-card {
+    box-sizing: border-box;
+    padding: 26rpx 28rpx;
+    margin-bottom: 24rpx;
+    border-radius: 30rpx;
+    background: linear-gradient(120deg, #FFE9C9, #FFF3D6);
+    border: 2rpx solid #F6D79A;
+}
+
+.alert-title {
+    font-size: 29rpx;
+    font-weight: 700;
+    color: #A35F26;
+}
+
+.alert-more {
+    font-size: 25rpx;
+    font-weight: 700;
+    color: #C97A24;
+}
+
+.alert-names {
+    display: block;
+    margin-top: 14rpx;
+    font-size: 26rpx;
+    color: #7B5B34;
+    line-height: 1.6;
+}
+
+.alert-tip {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #B2936D;
+}
+
+/* 有已过期食材时整卡换成暖红，和「快过期」的黄色一眼区分开 */
+.alert-card-expired {
+    background: linear-gradient(120deg, #FFE3DC, #FFF1EC);
+    border-color: #F3C3B7;
+}
+
+.alert-card-expired .alert-title { color: #B4503A; }
+.alert-card-expired .alert-more { color: #C4634C; }
+.alert-card-expired .alert-names { color: #7C554B; }
+.alert-card-expired .alert-tip { color: #B58C81; }
+
+/* 清过期的入口做得轻：它就在提醒条里，不该比「去看推荐」更抢眼 */
+.alert-clear {
+    display: inline-block;
+    margin-top: 18rpx;
+    padding: 12rpx 26rpx;
+    border-radius: 999rpx;
+    background: #FFFFFF;
+    border: 2rpx solid #F3C3B7;
+    font-size: 24rpx;
+    font-weight: 700;
+    color: #B4503A;
+}
+
+.zone-bar {
+    width: 100%;
+    white-space: nowrap;
+    margin: 8rpx 0 10rpx;
+}
+
+.zone-chip {
+    display: inline-block;
+    padding: 14rpx 28rpx;
+    margin-right: 14rpx;
+    border-radius: 999rpx;
+    background: #FFFFFF;
+    color: #8C8272;
+    font-size: 26rpx;
+    box-shadow: 0 4rpx 14rpx rgba(126, 110, 74, 0.06);
+}
+
+.zone-chip-on {
+    background: #7FB069;
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+.zone-hint {
+    display: block;
+    margin: 0 0 20rpx 6rpx;
+    font-size: 22rpx;
+    color: #A69C8B;
+}
+
+.food-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.food-card {
+    box-sizing: border-box;
+    width: 48.5%;
+    padding: 22rpx 22rpx 20rpx;
+    margin-bottom: 20rpx;
+    border-radius: 28rpx;
+    background: #FFFFFF;
+    border: 2rpx solid #EDF1E4;
+    box-shadow: 0 8rpx 22rpx rgba(126, 110, 74, 0.07);
+    animation: popIn 0.42s both;
+}
+
+.food-card-soon { border-color: #F7DFA8; }
+.food-card-urgent { border-color: #F3B9A5; background: #FFFAF6; }
+.food-card-expired { border-color: #E7A9A9; background: #FFF5F4; }
+
+.food-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.food-emoji {
+    font-size: 58rpx;
+    line-height: 1.1;
+}
+
+.food-days {
+    font-size: 20rpx;
+    color: #8E9C79;
+    background: #F1F5E9;
+    padding: 6rpx 12rpx;
+    border-radius: 999rpx;
+}
+
+.food-card-soon .food-days { color: #A1752A; background: #FFF1D0; }
+.food-card-urgent .food-days, .food-card-expired .food-days { color: #C4634C; background: #FFE6DE; }
+
+.food-name {
+    display: block;
+    margin-top: 14rpx;
+    font-size: 29rpx;
+    font-weight: 700;
+}
+
+.food-edit {
+    font-size: 22rpx;
+    font-weight: 400;
+    color: #9aa897;
+}
+
+.food-qty {
+    display: block;
+    margin-top: 4rpx;
+    font-size: 22rpx;
+    color: #A69C8B;
+}
+
+/* 数量可以点：淡下划线给个「这儿能改」的暗示，✎ 只在同色系里露一下 */
+.food-qty-edit {
+    font-size: 19rpx;
+    color: #B9C4AD;
+}
+
+/* 模糊数量用奶酪黄，和灰色的「2 盒」这类精确描述一眼分开 */
+.food-qty-fuzzy {
+    color: #B9832B;
+    font-weight: 600;
+}
+
+/* 食材已消耗次数：>0 才渲染，用奶酪黄和「还剩几天」的绿/橙区分开 */
+.food-consumed {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 20rpx;
+    color: #A1752A;
+    font-weight: 600;
+}
+
+.bar {
+    height: 10rpx;
+    margin-top: 18rpx;
+    border-radius: 999rpx;
+    background: #F0EEE4;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 999rpx;
+    transition: width 0.4s ease;
+}
+
+.bar-fresh { background: #8CC36B; }
+.bar-soon { background: #F5C55C; }
+.bar-urgent { background: #EE9A6B; }
+.bar-expired { background: #DE7E7E; }
+
+.food-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18rpx;
+    padding-top: 14rpx;
+    border-top: 2rpx dashed #EFEADB;
+}
+
+.food-act {
+    font-size: 22rpx;
+    color: #4E7A3E;
+}
+
+.food-act-del { color: #C98D7C; }
+
+.fab {
+    position: fixed;
+    right: 40rpx;
+    bottom: 168rpx;
+    z-index: 70;
+    width: 104rpx;
+    height: 104rpx;
+    line-height: 100rpx;
+    text-align: center;
+    border-radius: 50%;
+    background: #F8D568;
+    color: #6B5320;
+    font-size: 60rpx;
+    font-weight: 300;
+    box-shadow: 0 12rpx 28rpx rgba(201, 164, 66, 0.38);
+}
+
+.mode-row {
+    display: flex;
+    margin-top: 24rpx;
+}
+
+.mode {
+    flex: 1;
+    margin-right: 12rpx;
+    padding: 18rpx 0;
+    text-align: center;
+    border-radius: 20rpx;
+    background: #F4F1E6;
+    color: #8C8272;
+    font-size: 25rpx;
+}
+
+.mode:last-child { margin-right: 0; }
+
+.mode-on {
+    background: #E5F0D9;
+    color: #4E7A3E;
+    font-weight: 700;
+}
+
+.tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 4rpx;
+}
+
+.tag {
+    padding: 12rpx 20rpx;
+    margin: 0 12rpx 12rpx 0;
+    border-radius: 999rpx;
+    background: #F4F1E6;
+    color: #6B6151;
+    font-size: 24rpx;
+}
+
+.tag-on {
+    background: #7FB069;
+    color: #FFFFFF;
+}
+
+.mini-row {
+    display: flex;
+    margin-top: 24rpx;
+}
+
+.mini-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.mini-field-gap { margin-left: 14rpx; }
+
+.mini-label {
+    display: block;
+    margin-bottom: 10rpx;
+    font-size: 23rpx;
+    color: #8C8272;
+}
+
+.mini-input { margin-top: 0; }
+
+.days-wrap { position: relative; }
+
+.days-input { padding-right: 66rpx; }
+
+.days-unit {
+    position: absolute;
+    right: 24rpx;
+    top: 0;
+    height: 84rpx;
+    line-height: 84rpx;
+    font-size: 26rpx;
+    color: #8C8272;
+}
+
+.unit-row {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 16rpx;
+}
+
+.unit-hint {
+    flex: none;
+    margin: 12rpx 14rpx 0 0;
+    font-size: 22rpx;
+    color: #8C8272;
+}
+
+/* 单位：固定两排、横向滑动。inline-flex + column wrap 让内容按「列」往右长，
+   scroll-view 负责横向滚动；不用 grid / flex gap，兼容较旧的基础库渲染。 */
+.unit-scroll {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.unit-grid {
+    display: inline-flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    height: 128rpx;          /* 2 × (52rpx 标签 + 12rpx 间距) */
+    min-width: 100%;
+}
+
+.unit {
+    flex: none;
+    box-sizing: border-box;
+    height: 52rpx;
+    line-height: 52rpx;
+    padding: 0 18rpx;
+    margin: 0 10rpx 12rpx 0;
+    font-size: 22rpx;
+    text-align: center;
+}
+
+/* 最近用过：淡绿描边给个「为什么它排前面」的解释；选中态统一盖掉描边。 */
+.unit-recent { box-shadow: inset 0 0 0 2rpx #CFE3BE; }
+.unit-custom { background: #FFF7E4; }
+.unit.tag-on { background: #7FB069; color: #FFFFFF; box-shadow: none; }
+
+.unit-add {
+    background: #FFFFFF;
+    color: #7FB069;
+    border: 2rpx dashed #B9D6A5;
+    line-height: 48rpx;
+    font-size: 30rpx;
+    font-weight: 700;
+}
+
+.unit-tip {
+    display: block;
+    margin: 2rpx 0 0 58rpx;
+    font-size: 20rpx;
+    line-height: 1.5;
+    color: #A69B87;
+}
+
+.unit-editor {
+    display: flex;
+    align-items: center;
+    margin: 12rpx 0 0 58rpx;
+}
+
+.unit-editor-input {
+    flex: 1;
+    min-width: 0;
+    height: 64rpx;
+    padding: 0 18rpx;
+    border: 2rpx solid #E5E0CE;
+    border-radius: 16rpx;
+    background: #FFFFFF;
+    color: #4A4336;
+    font-size: 24rpx;
+}
+
+.unit-editor-btn {
+    flex: none;
+    height: 64rpx;
+    line-height: 64rpx;
+    padding: 0 20rpx;
+    margin-left: 10rpx;
+    border-radius: 16rpx;
+    background: #7FB069;
+    color: #FFFFFF;
+    font-size: 23rpx;
+}
+
+.unit-editor-cancel { background: #F4F1E6; color: #8C8272; }
+
+.unit-error {
+    display: block;
+    margin: 8rpx 0 0 58rpx;
+    font-size: 20rpx;
+    color: #C7654B;
+}
+
+/* 数量：一排等宽的三选一，三种写法平级，选中哪个就只展开哪个 */
+.qty-intro {
+    display: block;
+    margin: 0 0 16rpx;
+    font-size: 21rpx;
+    line-height: 1.5;
+    color: #8C8272;
+}
+
+.qty-modes { display: flex; justify-content: space-between; }
+
+.qty-mode {
+    box-sizing: border-box;
+    width: 31%;
+    padding: 16rpx 0;
+    border: 2rpx solid transparent;
+    border-radius: 16rpx;
+    background: #F4F1E6;
+    color: #6B6151;
+    font-size: 25rpx;
+    text-align: center;
+}
+
+.qty-mode-on {
+    background: #7FB069;
+    border-color: #7FB069;
+    color: #FFFFFF;
+}
+
+.qty-mode-many.qty-mode-on,
+.qty-mode-little.qty-mode-on {
+    background: #E8A33D;
+    border-color: #E8A33D;
+}
+
+.qty-pane {
+    margin-top: 16rpx;
+    padding: 18rpx 20rpx;
+    border-radius: 18rpx;
+    background: #F7F5EC;
+}
+
+.qty-pane-fuzzy { background: #FFF3D6; }
+
+.qty-pane-title {
+    display: block;
+    font-size: 27rpx;
+    font-weight: 600;
+    color: #A9772A;
+}
+
+.qty-pane-desc {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: #8A7248;
+}
+
+.qty-preview {
+    box-sizing: border-box;
+    height: 84rpx;
+    line-height: 84rpx;
+    padding: 0 20rpx;
+    border-radius: 20rpx;
+    background: #F1F5E9;
+    font-size: 25rpx;
+    color: #5F7A48;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.qty-preview-fuzzy { background: #FFF3D6; color: #B9832B; }
+.qty-preview-none { background: #F4F1E6; color: #A69C8B; }
+
+.shelf-note {
+    margin-top: 16rpx;
+    padding: 16rpx 20rpx;
+    border-radius: 18rpx;
+    background: #F1F5E9;
+}
+
+.shelf-tip {
+    display: block;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: #5F7A48;
+}
+
+.shelf-date {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    color: #8A9B77;
+}
+
+.quick-area {
+    height: 150rpx;
+    padding: 20rpx 24rpx;
+    line-height: 1.6;
+}
+
+.quick-tip {
+    display: block;
+    margin-bottom: 16rpx;
+    font-size: 22rpx;
+    line-height: 1.6;
+    color: #A69C8B;
+}
+
+.receipt-box {
+    position: relative;
+    overflow: hidden;
+    margin-top: 28rpx;
+    padding: 48rpx 20rpx;
+    text-align: center;
+    border: 3rpx dashed #DCD3B8;
+    border-radius: 28rpx;
+    background: #FFFDF4;
+}
+
+.receipt-emoji { display: block; font-size: 76rpx; }
+.receipt-title { display: block; margin-top: 16rpx; font-size: 30rpx; font-weight: 700; }
+.receipt-sub { display: block; margin-top: 8rpx; font-size: 23rpx; color: #A69C8B; }
+
+/* 识别中：小票图轻轻浮动、文案呼吸、虚线框内一道扫描光带 */
+.receipt-busy .receipt-emoji { animation: receipt-float 1.5s ease-in-out infinite; }
+.receipt-busy .receipt-title { animation: receipt-breath 1.5s ease-in-out infinite; }
+
+.receipt-busy::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 0;
+    height: 48rpx;
+    background: linear-gradient(180deg, rgba(127, 176, 105, 0) 0%, rgba(127, 176, 105, 0.16) 55%, rgba(127, 176, 105, 0) 100%);
+    animation: receipt-scan 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes receipt-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10rpx) scale(1.05); }
+}
+
+@keyframes receipt-breath {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+@keyframes receipt-scan {
+    0% { top: -48rpx; }
+    100% { top: 100%; }
+}
+
+.parsed-list { margin-top: 4rpx; }
+
+.parsed-item {
+    display: flex;
+    align-items: center;
+    padding: 16rpx 0;
+    border-bottom: 2rpx solid #F1EDE0;
+}
+
+.parsed-emoji { font-size: 44rpx; }
+.parsed-copy { flex: 1; margin-left: 16rpx; }
+.parsed-name { display: block; font-size: 27rpx; font-weight: 600; }
+.parsed-meta { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A69C8B; }
+.parsed-meta-fuzzy { color: #B9832B; }
+.parsed-qty-edit { margin-left: 8rpx; color: #7FB069; }
+.parsed-del { padding: 8rpx 18rpx; font-size: 36rpx; color: #C98D7C; }
+
+/* 本次连续录入的小结，紧跟在「放进冰箱」按钮下方 */
+.round-bar {
+    margin-top: 24rpx;
+    padding: 20rpx 24rpx;
+    border-radius: 20rpx;
+    background: #F1F5E9;
+}
+
+.round-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.round-count { font-size: 26rpx; font-weight: 700; color: #4E7A3E; }
+.round-actions { display: flex; align-items: center; }
+.round-toggle { margin-right: 16rpx; font-size: 23rpx; color: #5F7A48; }
+
+.round-done {
+    padding: 8rpx 22rpx;
+    border-radius: 999rpx;
+    background: #7FB069;
+    color: #FFFFFF;
+    font-size: 23rpx;
+}

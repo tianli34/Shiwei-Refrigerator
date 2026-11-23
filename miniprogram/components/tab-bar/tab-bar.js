@@ -4,11 +4,13 @@ Component({
     },
     data: {
         tabs: [
-            { key: 'index', emoji: '🧊', label: '冰箱', path: '/pages/index/index' },
-            { key: 'alchemy', emoji: '🍽️', label: '推荐', path: '/pages/alchemy/alchemy' },
-            { key: 'shopping', emoji: '🧺', label: '买菜', path: '/pages/shopping/shopping' },
-            { key: 'family', emoji: '🏡', label: '家人', path: '/pages/family/family' },
-            { key: 'profile', emoji: '🐸', label: '我的', path: '/pages/profile/profile' },
+            { key: 'index', emoji: '🧊', label: '冰箱', path: '/pages/core/index/index' },
+            { key: 'alchemy', emoji: '🍽️', label: '推荐', path: '/pages/core/alchemy/alchemy' },
+            { key: 'shopping', emoji: '🧺', label: '买菜', path: '/pages/core/shopping/shopping' },
+            // #if social
+            { key: 'family', emoji: '🏡', label: '家人', path: '/pages/social/family/family' },
+            // #endif
+            { key: 'profile', emoji: '🐸', label: '我的', path: '/pages/core/profile/profile' },
         ],
     },
     methods: {

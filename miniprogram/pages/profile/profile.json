@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "我的",
-  "usingComponents": {
-    "login-panel": "../../components/login-panel/login-panel",
-    "tab-bar": "../../components/tab-bar/tab-bar"
-  }
-}

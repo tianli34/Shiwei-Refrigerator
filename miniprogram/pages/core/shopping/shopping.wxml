@@ -1,0 +1,109 @@
+<view class="page-wrap">
+
+    <view wx:if="{{authState === 'checking'}}" class="loading-box">
+        <text class="loading-dot">🧺</text><text>正在整理买菜篮…</text>
+    </view>
+
+    <view wx:elif="{{authState === 'signed-out'}}" class="auth-state">
+        <view class="auth-head">
+            <text class="auth-logo">🧺</text>
+            <text class="auth-title">智能买菜篮</text>
+            <text class="auth-slogan">登录后清单会存进你的账号，换设备也能看到</text>
+        </view>
+        <login-panel bind:signedin="onSignedIn" />
+        <text class="auth-error" wx:if="{{authError}}">{{authError}}</text>
+    </view>
+
+    <block wx:else>
+        <view class="basket-hero">
+            <text class="basket-emoji">🧺</text>
+            <view class="basket-copy">
+                <text class="basket-title">还差 {{pendingCount}} 样</text>
+                <text class="basket-sub">买一样划掉一样，顺路的人也能帮着买</text>
+            </view>
+        </view>
+
+        <view class="card" wx:if="{{viewState === 'error'}}">
+            <text class="section-title">清单没取出来</text>
+            <text class="section-sub">检查一下网络再试试。</text>
+            <view class="btn-ghost" style="margin-top:24rpx" bindtap="onRetryData">重新加载</view>
+        </view>
+
+        <block wx:else>
+            <view class="card">
+                <text class="section-title">➕ 临时加一样</text>
+                <view class="add-row">
+                    <input class="field-input add-input" placeholder="想买什么？" value="{{newName}}" bindinput="onNewName" bindconfirm="onAdd" />
+                    <view class="add-btn" bindtap="onAdd">加</view>
+                </view>
+            </view>
+
+            <view class="result-head">
+                <text class="section-title">🛒 待买</text>
+                <text class="result-count">{{pendingCount}} 样</text>
+            </view>
+
+            <view class="card empty-state" wx:if="{{pendingItems.length === 0 && viewState === 'ready'}}">
+                <text class="empty-emoji">🌿</text>
+                <text class="empty-title">买菜篮空空的</text>
+                <text class="empty-desc">在今日推荐菜里遇到「只差一样」的菜，点一下就能加进来。</text>
+                <view class="btn-ghost" style="margin-top:24rpx" bindtap="goRecommend">去找菜谱</view>
+            </view>
+
+            <view class="item" wx:for="{{pendingItems}}" wx:key="id">
+                <view class="check" data-id="{{item.id}}" data-done="0" bindtap="onToggle"></view>
+                <text class="item-emoji">{{item.emoji}}</text>
+                <view class="item-copy">
+                    <text class="item-name" data-id="{{item.food_id}}" catchtap="onItemNameTap">{{item.display}} <text style="font-size:22rpx;color:#9aa897">✎</text></text>
+                    <text class="item-from" wx:if="{{item.from_recipe}}">来自：{{item.from_recipe}}</text>
+                </view>
+                <text class="item-del" data-id="{{item.id}}" bindtap="onRemove">×</text>
+            </view>
+
+            <block wx:if="{{doneItems.length > 0}}">
+                <view class="result-head">
+                    <text class="section-title">✅ 已买到</text>
+                    <text class="clear-btn" bindtap="onClearDone">清空</text>
+                </view>
+                <view class="item item-done" wx:for="{{doneItems}}" wx:key="id">
+                    <view class="check check-on" data-id="{{item.id}}" data-done="1" bindtap="onToggle">✓</view>
+                    <text class="item-emoji">{{item.emoji}}</text>
+                    <view class="item-copy"><text class="item-name">{{item.display}}</text></view>
+                    <text class="item-del" data-id="{{item.id}}" bindtap="onRemove">×</text>
+                </view>
+            </block>
+
+            <!-- #if social -->
+            <view class="share-card">
+                <text class="section-title">🧑‍🤝‍🧑 顺路的人帮你买</text>
+                <text class="section-sub">把清单发给下班路过超市的 TA，或者复制成一段文字。</text>
+                <view class="share-row">
+                    <button class="share-btn" open-type="share">转发清单</button>
+                    <view class="copy-btn" bindtap="onCopyList">复制文字</view>
+                </view>
+            </view>
+            <!-- #endif -->
+            <!-- #if !social -->
+            <view class="share-card">
+                <text class="section-title">🧺 照着买</text>
+                <text class="section-sub">把清单复制成一段文字，去超市照着买。</text>
+                <view class="share-row">
+                    <view class="copy-btn" bindtap="onCopyList">复制文字</view>
+                </view>
+            </view>
+            <!-- #endif -->
+        </block>
+    </block>
+
+    <tab-bar current="shopping" />
+    <name-picker
+        visible="{{namePicker ? true : false}}"
+        foodId="{{namePicker.foodId}}"
+        current="{{namePicker.current}}"
+        names="{{namePicker.names}}"
+        scopeHint="{{namePicker.scopeHint}}"
+        bind:pick="onNamePickerPick"
+        bind:reset="onNamePickerReset"
+        bind:close="onNamePickerClose"
+    />
+</view>

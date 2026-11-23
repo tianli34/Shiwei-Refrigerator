@@ -25,7 +25,7 @@ Component({
     data: {
         sessionFrom: '',
         messageTitle: '拾味冰箱 · 来聊聊今天吃什么',
-        messagePath: '/pages/index/index',
+        messagePath: '/pages/core/index/index',
         preview: false,
     },
 

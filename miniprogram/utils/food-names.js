@@ -1,6 +1,6 @@
 // 叫法偏好层：把「稳定身份」翻译成「这个用户、这个场景下该显示的中文名」。
 // 优先级：显式/学习到的个人覆盖 > 家庭统一叫法 > 地域词包 > 通用主名。
-// 外部受众（分享点菜板）强制回退通用主名，避免好友看不懂方言。
+// 外部受众强制回退通用主名，避免对方看不懂方言。
 const dict = require('./food-dict');
 const stores = require('./store');
 
@@ -10,7 +10,9 @@ const K_USAGE = 'food_name_usage';
 const K_ERROR = 'food_name_cloud_error';
 
 const CTX_INTERNAL = {};
+// #if social
 const CTX_EXTERNAL = { external: true };
+// #endif
 
 const state = {
     personal: {},
@@ -249,7 +251,7 @@ async function clearPreference(id, scope) {
             if (row.food_id !== id) continue;
             if ((row.pref_scope || 'personal') !== (scope || 'personal')) continue;
             if ((row.household_key || '') !== key) continue;
-            // 个人偏好只能删自己的；共享冰箱里能看到别人的行，不能顺手清掉。
+            // 个人偏好只能删自己的；多成员作用域里能看到别人的行，不能顺手清掉。
             if ((scope || 'personal') === 'personal' && mine && row.owner_id && row.owner_id !== mine) continue;
             await stores.foodNamePrefs.remove(row.id);
         }
@@ -266,11 +268,13 @@ async function setRegion(region) {
     return status();
 }
 
+// #if social
 async function setHouseholdUnified(value) {
     state.unified = !!value;
     await upsertSettings();
     return status();
 }
+// #endif
 
 // 隐式学习：用户反复用自己的叫法录入，第 3 次后自动成为展示名。
 // 只记录原话词频，跨设备同步的是「最终结论」而不是原始日志。
@@ -307,7 +311,9 @@ function askAmbiguous(candidates) {
 
 module.exports = {
     CTX_INTERNAL: CTX_INTERNAL,
+    // #if social
     CTX_EXTERNAL: CTX_EXTERNAL,
+    // #endif
     init: init,
     sync: sync,
     loadLocal: readLocal,
@@ -321,7 +327,9 @@ module.exports = {
     setPreference: setPreference,
     clearPreference: clearPreference,
     setRegion: setRegion,
+    // #if social
     setHouseholdUnified: setHouseholdUnified,
+    // #endif
     learn: learn,
     availableNames: dict.namesOf,
     askAmbiguous: askAmbiguous,

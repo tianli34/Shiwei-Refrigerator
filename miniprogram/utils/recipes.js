@@ -84,7 +84,7 @@ function standInFor(ownedIds, neededId) {
 }
 
 // 用料 vs 库存的解释层：谁命中、谁缺、谁在「拿别的东西顶」、谁「够不上」。
-// 所有页面（今日推荐 / 收藏 / 点菜板）都从这里拿结论，避免各写一套判定。
+// 所有页面（今日推荐 / 收藏）都从这里拿结论，避免各写一套判定。
 function explain(ownedIds, neededNames, ctx) {
     const labelCtx = ctx || foodNames.CTX_INTERNAL;
     const owned = (ownedIds || []).map(toFoodId).filter(Boolean);
@@ -205,7 +205,7 @@ function allRecipes(cloudRows) {
 }
 
 // 统一菜谱身份：合池里的 'b1'/'c12' 原样返回；收藏页和云端裸行的数字 id 补 'c' 前缀，
-// 与 allRecipes() 以及 menu_shares 快照里的键对齐。两条路径只在这里分叉。
+// 与 allRecipes() 以及对外快照里的键对齐。两条路径只在这里分叉。
 function recipeKey(item) {
     const id = String((item && item.id) || '');
     if (/^\d+$/.test(id)) return 'c' + id;
@@ -213,7 +213,7 @@ function recipeKey(item) {
 }
 
 // 把次数贴到一批菜谱上：返回新对象，绝不改动 BUILTIN 常量；缺失/NaN/负数一律兜底为 0。
-// 计数是渲染前才装配的展示态，不进匹配池、不进点菜板快照。
+// 计数是渲染前才装配的展示态，不进匹配池、不进对外快照。
 function attachCookCounts(list, countMap) {
     const map = countMap || {};
     return (list || []).map(function (item) {

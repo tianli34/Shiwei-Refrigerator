@@ -1,12 +1,12 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/alchemy/alchemy",
-    "pages/shopping/shopping",
-    "pages/family/family",
-    "pages/profile/profile",
-    "pages/favorites/favorites",
-    "pages/order/order"
+    "pages/core/index/index",
+    "pages/core/alchemy/alchemy",
+    "pages/core/shopping/shopping",
+    "pages/social/family/family",
+    "pages/core/profile/profile",
+    "pages/core/favorites/favorites",
+    "pages/social/order/order"
   ],
   "window": {
     "navigationBarTitleText": "拾味冰箱",

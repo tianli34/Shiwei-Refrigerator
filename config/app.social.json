@@ -1,0 +1,25 @@
+{
+  "pages": [
+    "pages/core/index/index",
+    "pages/core/alchemy/alchemy",
+    "pages/core/shopping/shopping",
+    "pages/social/family/family",
+    "pages/core/profile/profile",
+    "pages/core/favorites/favorites",
+    "pages/social/order/order"
+  ],
+  "window": {
+    "navigationBarTitleText": "拾味冰箱",
+    "navigationBarBackgroundColor": "#FAF7EE",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF7EE",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "usingComponents": {
+    "contact-button": "/components/contact-button/contact-button",
+    "name-picker": "/components/name-picker/name-picker"
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

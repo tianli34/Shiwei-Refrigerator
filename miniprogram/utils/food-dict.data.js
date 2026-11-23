@@ -392,4 +392,5 @@ module.exports = [
     { id: "f387", name: "鳙鱼头", aliases: ["胖头鱼头","花鲢头","大头鱼头","雄鱼头","黑鲢头"], parent_id: "f386" },
     { id: "f388", name: "猪肉末", aliases: ["猪肉馅","猪肉碎"], parent_id: "f115" },
     { id: "f389", name: "干辣椒", aliases: ["辣椒干","干红辣椒"], parent_id: "f004" },
+    { id: "f390", name: "千页豆腐", aliases: ["千叶豆腐"] },
 ];

@@ -35,11 +35,13 @@ function createAuthMixin(options) {
             getApp().userName = user && user.name ? user.name : '';
             getApp().userId = user && user.id ? user.id : '';
             this.setData({ authState: 'signed-in', user: user, authError: '' });
+            // #if social
             try {
                 await getApp().loadHousehold();
             } catch (error) {
                 // 家庭关系读取失败不阻塞个人数据
             }
+            // #endif
             try {
                 // 展示名偏好必须在页面 loadData 之前就位，否则会闪一下默认叫法。
                 await foodNames.sync();

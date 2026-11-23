@@ -35,7 +35,7 @@ let pageOptions = null;
 global.Page = function (options) { pageOptions = options; };
 const stubs = {
     // 真实 mixin 会注入登录门禁相关方法，WXML 也绑定了它们
-    '../../utils/auth': {
+    '../../../utils/auth': {
         createAuthMixin: function (o) {
             return Object.assign({}, o, {
                 onShow: function () {},
@@ -46,9 +46,9 @@ const stubs = {
             });
         },
     },
-    '../../utils/store': { ingredients: { list: async function () { return { data: [] }; } } },
-    '../../utils/ai': {},
-    '../../utils/util': {
+    '../../../utils/store': { ingredients: { list: async function () { return { data: [] }; } } },
+    '../../../utils/ai': {},
+    '../../../utils/util': {
         ZONES: [{ key: 'cold', hint: '冷藏' }, { key: 'freeze', hint: '冷冻' }, { key: 'room', hint: '常温' }],
         COMMON_FOODS: [],
         toast: function () {},
@@ -58,13 +58,13 @@ const stubs = {
         expiryBuckets: function () { return { expired: [], urgent: [] }; },
         errorMessage: function () { return ''; },
     },
-    '../../utils/food-dict': { resolve: function () { return {}; }, meta: function () { return {}; } },
-    '../../utils/food-names': {
+    '../../../utils/food-dict': { resolve: function () { return {}; }, meta: function () { return {}; } },
+    '../../../utils/food-names': {
         decorate: function (row) { return row; },
         labelOf: function (name) { return name; },
         displayName: function () { return ''; },
     },
-    '../../utils/subscribe': {
+    '../../../utils/subscribe': {
         expiringNamesText: function () { return ''; },
         alertCopy: function () { return { title: '', tip: '', tone: '' }; },
     },
@@ -74,7 +74,7 @@ Module._load = function (request) {
     if (Object.prototype.hasOwnProperty.call(stubs, request)) return stubs[request];
     return originalLoad.apply(this, arguments);
 };
-require(path.join(root, 'pages', 'index', 'index.js'));
+require(path.join(root, 'pages', 'core', 'index', 'index.js'));
 Module._load = originalLoad;
 
 function makePage() {
@@ -203,7 +203,7 @@ function testPage() {
     assert.ok(pageOptions, 'index.js 应注册页面');
 
     // WXML 里所有事件绑定的处理函数都必须真实存在
-    const wxml = fs.readFileSync(path.join(root, 'pages', 'index', 'index.wxml'), 'utf8');
+    const wxml = fs.readFileSync(path.join(root, 'pages', 'core', 'index', 'index.wxml'), 'utf8');
     const handlers = (wxml.match(/(?:bind|catch)[a-zA-Z]+="(on\w+)"/g) || []).map(function (text) {
         return text.match(/"(on\w+)"/)[1];
     });
