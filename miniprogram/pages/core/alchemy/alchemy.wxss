@@ -1,3 +1,5 @@
+@import "../../../styles/food-icons.wxss";
+
 .hero-card {
     display: flex;
     align-items: center;
@@ -315,6 +317,7 @@
 }
 
 .cook-bar-emoji { font-size: 38rpx; }
+.cook-bar-icon { width: 42rpx; height: 42rpx; }
 .cook-bar-copy { flex: 1; min-width: 0; margin-left: 12rpx; }
 .cook-bar-name { display: block; font-size: 24rpx; font-weight: 600; }
 .cook-bar-qty { display: block; margin-top: 2rpx; font-size: 19rpx; color: #A69C8B; }

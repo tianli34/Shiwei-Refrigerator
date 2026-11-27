@@ -28,9 +28,15 @@ App({
         this.sessionPromise = null;
         // 先把本机叫法缓存装进内存，避免登录同步完成前闪一下默认主名。
         foodNames.loadLocal();
-        // 开门设置已整块撤掉，历史版本可能在本机留下这两个偏好键，顺手清掉。
-        wx.removeStorageSync('fridge:motion');
-        wx.removeStorageSync('fridge:sound');
+        // 全局音频策略只配置一次：遵循系统静音键、允许和别的 App 混播。
+        // 这是向系统「请求」，不是跨机型的保证，所以每个播放点都按尽力而为写。
+        try {
+            if (typeof wx.setInnerAudioOption === 'function') {
+                wx.setInnerAudioOption({ obeyMuteSwitch: true, mixWithOther: true });
+            }
+        } catch (error) {
+            // 老基础库没有这个接口，后面自然退化成静音
+        }
     },
 
     ensureSession: function () {
@@ -67,4 +73,24 @@ App({
     // 个人版没有共享作用域，保留同名空实现，避免调用点漏改直接抛 undefined。
     loadHousehold: async function () { return ''; },
     // #endif
+
+    // 开门音效跟着「开门」这个动作响一声，没有开关：遵循手机静音键（见上面 onLaunch）。
+    // 微信里没有用户手势的自动播放本来就大概率被拦，所以按尽力而为写：
+    // 音频能力缺失就安静跳过，不退化成振动 —— 打开录入弹层时震一下没有道理。
+    playDoorSound: function () {
+        try {
+            if (typeof wx.createInnerAudioContext === 'function') {
+                const audio = wx.createInnerAudioContext();
+                audio.src = '/assets/sounds/door.wav';
+                audio.volume = 0.3;
+                audio.onError(function () { audio.destroy(); });
+                audio.onEnded(function () { audio.destroy(); });
+                audio.play();
+                return true;
+            }
+        } catch (error) {
+            // 忽略音频能力缺失
+        }
+        return false;
+    },
 });

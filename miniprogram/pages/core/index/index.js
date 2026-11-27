@@ -4,6 +4,7 @@ const ai = require('../../../utils/ai');
 const util = require('../../../utils/util');
 const dict = require('../../../utils/food-dict');
 const foodNames = require('../../../utils/food-names');
+const foodIcon = require('../../../utils/food-icon');
 const subscribe = require('../../../utils/subscribe');
 const quantity = require('../../../utils/quantity');
 const units = require('../../../utils/units');
@@ -28,6 +29,7 @@ const DOOR = {
     // 等库存数据的上限：门不能当人质。超过这个点还没拿到数据，就先开门。
     waitData: 900,
 };
+const DOOR_SFX = '/assets/sounds/door.wav';
 
 // 把「一个数字」解释成人话：数字从哪来、能不能改、大约哪天到期。
 function shelfCopy(days, source) {
@@ -161,6 +163,8 @@ Page(createAuthMixin({
         // 记在 App 上而不是本页上：从别的 tab 回来、页面重建都不再重播。
         getApp().fridgeIntroSeen = true;
 
+        // 开门音效没有开关：默认就响，遵循手机静音键。任何一步失败都退化成「只演画面」。
+        this.prepareSound();
         this.setData({ doorPhase: 'play' });
 
         const that = this;
@@ -168,7 +172,35 @@ Page(createAuthMixin({
         this._endTimer = setTimeout(function () { that.finishIntro(true); }, DOOR.end);
     },
 
-    // 胶条脱开的那一下：轻震，整段动画里唯一的反馈点。
+    prepareSound: function () {
+        if (this._audio || typeof wx.createInnerAudioContext !== 'function') return;
+        const that = this;
+        const audio = wx.createInnerAudioContext();
+        this._audio = audio;
+        audio.volume = 0.35;
+        audio.onCanplay(function () { if (that._audio === audio) that._canPlay = true; });
+        audio.onError(function () {
+            if (that._audio !== audio) return;
+            that._canPlay = false;
+            that.stopSound();
+        });
+        audio.onEnded(function () {
+            if (that._audio !== audio) return;
+            that.stopSound();
+        });
+        audio.src = DOOR_SFX;
+    },
+
+    stopSound: function () {
+        const audio = this._audio;
+        this._audio = null;
+        this._canPlay = false;
+        if (!audio) return;
+        try { audio.stop(); } catch (error) { /* 已经停了 */ }
+        audio.destroy();
+    },
+
+    // 胶条脱开的那一下：轻震 + 「啵」，整段动画里唯一的反馈点。
     onSealBreak: function () {
         if (!this._started || this.data.doorPhase !== 'play') return;
         try {
@@ -176,14 +208,18 @@ Page(createAuthMixin({
         } catch (error) {
             // 不支持振动就算了，画面照常
         }
+        const audio = this._audio;
+        if (!audio || !this._canPlay) return;
+        try { audio.play(); } catch (error) { /* 自动播放被拦就只演画面 */ }
     },
 
-    // 收尾只有一条路：清掉还没到点的定时器、撤掉整层。
-    // 切后台、读数据失败、动画到点都走这里，避免出现「人已经走了还在演」。
+    // 收尾只有一条路：清掉还没到点的定时器、销毁音频、撤掉整层。
+    // 切后台、读数据失败、动画到点都走这里，避免出现「人已经走了还响一声」。
     finishIntro: function (updateView) {
         clearTimeout(this._sealTimer);
         clearTimeout(this._endTimer);
         clearTimeout(this._capTimer);
+        this.stopSound();
         if (updateView && this.data.doorPhase !== 'done') this.setData({ doorPhase: 'done' });
     },
 
@@ -387,6 +423,8 @@ Page(createAuthMixin({
             qtyUnits: units.read().chips,
             unitEditor: false, unitDraft: '', unitError: '',
         }, shelfCopy(this.data.form.shelfDays, ''), qtyView(this.data.form)));
+        // 打开录入弹层＝又开了一次门，跟着响一声。
+        getApp().playDoorSound();
     },
 
     closeAddSheet: function () {
@@ -522,6 +560,7 @@ Page(createAuthMixin({
             return Object.assign({}, item, {
                 zoneLabel: ZONE_LABEL[item.zone] || '冷藏',
                 display: foodNames.displayName(item.food_id) || item.name,
+                icon: foodIcon.iconOf(item.food_id || dict.resolveId(item.name)),
                 qtyKind: quantity.kindOf(item.quantity),
             });
         });
@@ -585,6 +624,7 @@ Page(createAuthMixin({
             name: display,
             display: display,
             emoji: emoji,
+            icon: foodIcon.iconOf(foodId),
             quantity: quantityText,
             qtyKind: quantity.kindOf(quantityText),
             zone: zone,

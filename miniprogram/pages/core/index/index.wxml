@@ -93,7 +93,8 @@
                     bindtap="onFoodTap"
                 >
                     <view class="food-top">
-                        <text class="food-emoji">{{item.emoji}}</text>
+                        <view wx:if="{{item.icon}}" class="food-emoji food-icon {{item.icon}}" />
+                        <text wx:else class="food-emoji">{{item.emoji}}</text>
                         <text class="food-days">{{item.fresh.label}}</text>
                     </view>
                     <text class="food-name" data-id="{{item.food_id}}" catchtap="onFoodNameTap">{{item.display}} <text class="food-edit">✎</text></text>
@@ -246,7 +247,8 @@
                 </view>
                 <view class="parsed-list" wx:if="{{addedExpanded}}">
                     <view class="parsed-item" wx:for="{{addedThisRound}}" wx:key="id">
-                        <text class="parsed-emoji">{{item.emoji}}</text>
+                        <view wx:if="{{item.icon}}" class="parsed-emoji parsed-icon food-icon {{item.icon}}" />
+                        <text wx:else class="parsed-emoji">{{item.emoji}}</text>
                         <view class="parsed-copy">
                             <text class="parsed-name">{{item.display}}</text>
                             <text class="parsed-meta {{item.qtyKind == 'fuzzy' ? 'parsed-meta-fuzzy' : ''}}">{{item.quantity || '数量没记'}} · 还能放 {{item.shelfDays}} 天 · {{item.zoneLabel}}</text>
@@ -280,7 +282,8 @@
             <text class="field-label">认出了这些（{{parsedFoods.length}} 样）</text>
             <view class="parsed-list">
                 <view class="parsed-item" wx:for="{{parsedFoods}}" wx:key="raw_name">
-                    <text class="parsed-emoji">{{item.emoji}}</text>
+                    <view wx:if="{{item.icon}}" class="parsed-emoji parsed-icon food-icon {{item.icon}}" />
+                    <text wx:else class="parsed-emoji">{{item.emoji}}</text>
                     <view class="parsed-copy">
                         <text class="parsed-name">{{item.display}}</text>
                         <text

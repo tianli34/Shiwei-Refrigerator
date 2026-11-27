@@ -136,7 +136,8 @@
         </view>
         <text class="cook-bar-sub">库存没动，顺手记一下这几样还剩多少？</text>
         <view class="cook-bar-item" wx:for="{{bar.items}}" wx:key="key">
-            <text class="cook-bar-emoji">{{item.emoji}}</text>
+            <view wx:if="{{item.icon}}" class="cook-bar-emoji cook-bar-icon food-icon {{item.icon}}" />
+            <text wx:else class="cook-bar-emoji">{{item.emoji}}</text>
             <view class="cook-bar-copy">
                 <text class="cook-bar-name">{{item.name}}</text>
                 <text class="cook-bar-qty {{item.done || item.pick === 'little' ? 'cook-bar-qty-on' : ''}}">{{item.text}}</text>

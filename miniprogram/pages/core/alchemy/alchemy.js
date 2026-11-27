@@ -8,6 +8,7 @@ const recipes = require('../../../utils/recipes');
 const util = require('../../../utils/util');
 const dict = require('../../../utils/food-dict');
 const foodNames = require('../../../utils/food-names');
+const foodIcon = require('../../../utils/food-icon');
 
 const K_DAYS = 'recommend_urgent_days';
 const PAGE_STEP = 5;
@@ -291,6 +292,7 @@ Page(createAuthMixin({
                 id: row.id,
                 foodId: id,
                 emoji: row.emoji || dict.meta(id).emoji,
+                icon: foodIcon.iconOf(id),
                 name: row.display || foodNames.labelOf(id),
                 text: row.quantity || '数量没记',
                 // 冰箱里原本就记成「少量」的，进来就亮「剩少量」，不用再点一遍才知道现状。

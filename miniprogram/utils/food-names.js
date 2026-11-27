@@ -3,6 +3,7 @@
 // 外部受众强制回退通用主名，避免对方看不懂方言。
 const dict = require('./food-dict');
 const stores = require('./store');
+const foodIcon = require('./food-icon');
 
 const K_PREFS = 'food_name_prefs_cache';
 const K_SETTINGS = 'food_name_settings_cache';
@@ -162,6 +163,7 @@ function decorate(row, ctx) {
         food_id: id || '',
         display: (id ? displayName(id, ctx) : '') || source.name || '',
         canonical: id ? dict.canonicalOf(id) : (source.name || ''),
+        icon: foodIcon.iconOf(id),
     });
 }
 

@@ -1,3 +1,5 @@
+@import "../../../styles/food-icons.wxss";
+
 .basket-hero {
     display: flex;
     align-items: center;
@@ -67,6 +69,7 @@
 .check-on { background: #7FB069; border-color: #7FB069; }
 
 .item-emoji { margin-left: 20rpx; font-size: 44rpx; }
+.item-icon { width: 48rpx; height: 48rpx; }
 .item-copy { flex: 1; margin-left: 18rpx; overflow: hidden; }
 .item-name { display: block; font-size: 28rpx; font-weight: 600; }
 .item-from { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A69C8B; }

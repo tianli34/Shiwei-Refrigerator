@@ -1,3 +1,5 @@
+@import "../../../styles/food-icons.wxss";
+
 /* ---------- 开门 ----------
    门板是 fixed 的一层，盖住整页；下面就是真实库存页，不是另做一个「开屏页」。
    所以门只要 opacity 归零、撤掉这层 view，露出来的就是用户要看的冰箱。 */
@@ -363,6 +365,11 @@
 .food-emoji {
     font-size: 58rpx;
     line-height: 1.1;
+}
+
+.food-icon {
+    width: 64rpx;
+    height: 64rpx;
 }
 
 .food-days {
@@ -816,6 +823,7 @@
 }
 
 .parsed-emoji { font-size: 44rpx; }
+.parsed-icon { width: 48rpx; height: 48rpx; }
 .parsed-copy { flex: 1; margin-left: 16rpx; }
 .parsed-name { display: block; font-size: 27rpx; font-weight: 600; }
 .parsed-meta { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A69C8B; }
